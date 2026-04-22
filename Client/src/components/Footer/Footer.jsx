@@ -1,312 +1,245 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Mail,
-  Phone,
-  MapPin,
-  Facebook,
-  Instagram,
-  Linkedin,
-  ArrowRight,
-  ExternalLink,
-  Building2,
-  Users,
-  Briefcase,
-  Home,
+  Mail, Phone, MapPin, Facebook, Instagram, Linkedin,
+  ArrowRight, ArrowUpRight, Building2, Users, Briefcase, Home,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import CONFIG from "../../config/config.js";
 
-/**
- * 🏗️ FOOTER BETCOM AI - ULTRA MODERNE
- * Charte: Noir, blanc, gris
- * Inspiré des grands sites d'architecture
- */
+const NAVY   = "#003893";
+const ORANGE = "#EA580C";
 
 const Footer = () => {
   const { t } = useTranslation();
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState("success");
-
-  const showNotification = (message, type = "success") => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 5000);
-  };
+  const [hoveredLink, setHoveredLink] = useState(null);
 
   const services = [
-    { label: t('footer.services.architecture'), href: "/services", icon: Building2 },
-    { label: t('footer.services.engineering'), href: "/services", icon: Briefcase },
-    { label: t('footer.services.urban'), href: "/services", icon: Home },
-    { label: t('footer.services.consulting'), href: "/services", icon: Users },
+    { label: t("footer.services.architecture", "Architecture"), href: "/services", icon: Building2 },
+    { label: t("footer.services.engineering",  "Ingénierie"),   href: "/services", icon: Briefcase },
+    { label: t("footer.services.urban",        "Urbanisme"),    href: "/services", icon: Home },
+    { label: t("footer.services.consulting",   "Consulting"),   href: "/services", icon: Users },
   ];
 
   const quickLinks = [
-    { label: t('footer.links.home'), href: "/" },
-    { label: t('footer.links.about'), href: "/nosMissions" },
-    { label: t('footer.links.team'), href: "/notreEquipe" },
-    { label: t('footer.links.projects'), href: "/portfolio" },
-    { label: t('footer.links.news'), href: "/actualites" },
-    { label: t('footer.links.contact'), href: "/contacternous" },
+    { label: t("footer.links.home",    "Accueil"),      href: "/" },
+    { label: t("footer.links.about",   "Nos missions"), href: "/nosMissions" },
+    { label: t("footer.links.team",    "Notre équipe"), href: "/notreEquipe" },
+    { label: t("footer.links.projects","Portfolio"),    href: "/portfolio" },
+    { label: t("footer.links.news",    "Actualités"),   href: "/actualites" },
+    { label: t("footer.links.contact", "Contact"),      href: "/contacternous" },
   ];
 
   const socialLinks = [
-    { name: "Facebook", icon: Facebook, url: "https://facebook.com" },
+    { name: "LinkedIn",  icon: Linkedin,  url: "https://linkedin.com" },
+    { name: "Facebook",  icon: Facebook,  url: "https://facebook.com" },
     { name: "Instagram", icon: Instagram, url: "https://instagram.com" },
-    { name: "LinkedIn", icon: Linkedin, url: "https://linkedin.com" },
   ];
 
   const contactInfo = [
-    { 
-      icon: MapPin, 
-      text: "Conakry, Guinée",
-      link: "https://maps.google.com"
-    },
-    { 
-      icon: Phone, 
-      text: "+212 628 80 74 56",
-      link: "tel:+212XXXXXXXXX"
-    },
-    { 
-      icon: Mail, 
-      text: "contact@betcom.com",
-      link: "mailto:contact@betcom.ma"
-    },
+    { icon: MapPin, label: "Adresse",  text: "Conakry, Guinée",           href: "https://maps.google.com" },
+    { icon: Phone,  label: "Téléphone",text: "+224 628 80 74 56",         href: "tel:+224628807456" },
+    { icon: Mail,   label: "Email",    text: "contact@nexusbtp.com",       href: "mailto:contact@nexusbtp.com" },
   ];
 
   return (
-    <>
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed top-6 right-6 z-[9999] animate-in slide-in-from-right duration-500">
-          <div className={`max-w-md ${
-            toastType === "success" ? "bg-black" : "bg-red-600"
-          } rounded-xl p-4 border-2 ${
-            toastType === "success" ? "border-white" : "border-red-400"
-          } shadow-2xl`}>
-            <div className="flex items-start gap-3">
-              <div className="flex-1">
-                <p className="text-white font-bold text-sm mb-1">
-                  {toastType === "success" ? t('footer.toast.success') : t('footer.toast.error')}
-                </p>
-                <p className="text-white/90 text-sm">{toastMessage}</p>
-              </div>
-              <button
-                onClick={() => setShowToast(false)}
-                className="text-white hover:bg-white/20 rounded p-1"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+    <footer style={{ background: "#05112a", color: "#fff", fontFamily: "'DM Sans','Segoe UI',sans-serif", position: "relative", overflow: "hidden" }}>
+
+      {/* ── Decorative background geometry ── */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${NAVY} 0%, ${NAVY} 55%, ${ORANGE} 100%)` }} />
+      <div style={{ position: "absolute", top: -200, right: -200, width: 600, height: 600, borderRadius: "50%", background: `${NAVY}18`, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -100, left: -100, width: 400, height: 400, borderRadius: "50%", background: `${ORANGE}08`, pointerEvents: "none" }} />
+      {/* Grid lines */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: "80px 80px", pointerEvents: "none" }} />
+
+      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "40px 48px 0", position: "relative" }}>
+
+        {/* ── TOP: Brand + CTA ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 32, alignItems: "center", marginBottom: 32, paddingBottom: 32, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+
+          {/* Brand */}
+          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+            {/* Wordmark compact */}
+            <h2 style={{
+              fontSize: "clamp(36px, 5vw, 64px)",
+              fontWeight: 900,
+              letterSpacing: "-0.03em",
+              lineHeight: 1,
+              margin: 0,
+              fontFamily: "'Creato Display','DM Sans',sans-serif",
+              flexShrink: 0,
+            }}>
+              <span style={{ color: "#fff" }}>NEX</span>
+              <span style={{ color: ORANGE }}>US</span>
+              <span style={{ fontSize: "0.28em", fontWeight: 500, color: "rgba(255,255,255,0.35)", letterSpacing: "0.12em", marginLeft: 10, verticalAlign: "middle" }}>BTP CONSULTING</span>
+            </h2>
+
+            {/* Separator */}
+            <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, fontWeight: 300, maxWidth: 320, margin: 0 }}>
+              {t("footer.tagline", "Architecture, ingénierie et conseil BTP — nous façonnons les infrastructures de demain.")}
+            </p>
           </div>
+
+          {/* CTA */}
+          <NavLink to="/contacternous"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 22px", background: ORANGE, color: "#fff", borderRadius: 10, fontWeight: 700, fontSize: 13, textDecoration: "none", transition: "all 0.2s", whiteSpace: "nowrap" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#c44a08"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = ORANGE; e.currentTarget.style.transform = "translateY(0)"; }}>
+            Parlons-en <ArrowRight size={15} />
+          </NavLink>
         </div>
-      )}
 
-      <footer className="relative bg-black text-white border-t-2 border-white">
-        
-        {/* Main Content */}
-        <div className="max-w-[1800px] mx-auto px-6 lg:px-16 py-20">
-          
-          {/* Top Section - Brand + Contact */}
-          <div className="grid lg:grid-cols-3 gap-16 mb-20 pb-20 border-b border-white/20">
-            
-            {/* Brand */}
-            <div className="lg:col-span-2 space-y-8">
-              <div>
-                <h3 className="text-[60px] md:text-[80px] lg:text-[120px] font-bold leading-none tracking-tight mb-6" style={{ fontFamily: "'Creato Display', sans-serif" }}>
-                  BETCOM
-                </h3>
-                <p className="text-xl md:text-2xl text-gray-400 font-light max-w-2xl leading-relaxed" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.tagline')}
-                </p>
-              </div>
+        {/* ── MIDDLE: Links + Contact ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 32, marginBottom: 32, paddingBottom: 32, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
 
-              {/* Stats Line */}
-              {/* <div className="flex flex-wrap items-center gap-8 md:gap-16 text-sm uppercase tracking-widest pt-8" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                <div>
-                  <span className="text-white font-bold text-3xl md:text-4xl">2010</span>
-                  <span className="text-gray-500 ml-3">{t('footer.stats.founded')}</span>
-                </div>
-                <div className="w-px h-8 bg-gray-700 hidden sm:block"></div>
-                <div>
-                  <span className="text-white font-bold text-3xl md:text-4xl">500+</span>
-                  <span className="text-gray-500 ml-3">{t('footer.stats.projects')}</span>
-                </div>
-                <div className="w-px h-8 bg-gray-700 hidden sm:block"></div>
-                <div>
-                  <span className="text-white font-bold text-3xl md:text-4xl">50+</span>
-                  <span className="text-gray-500 ml-3">{t('footer.stats.team')}</span>
-                </div>
-              </div> */}
+          {/* Contact — compact inline rows */}
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ width: 16, height: 2, background: ORANGE, marginBottom: 8 }} />
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>
+                {t("footer.sections.contact", "Contact")}
+              </span>
             </div>
-
-            {/* Contact Info */}
-            <div className="space-y-4">
-              <div className="mb-6">
-                <div className="w-16 h-1 bg-white mb-4"></div>
-                <span className="text-xs uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.sections.contact')}
-                </span>
-              </div>
-
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {contactInfo.map((item, idx) => {
                 const Icon = item.icon;
+                const key = `contact-${idx}`;
                 return (
-                  <a
-                    key={idx}
-                    href={item.link}
-                    target={item.link.startsWith('http') ? '_blank' : undefined}
-                    rel={item.link.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    className="group flex items-center gap-4 py-3 border-b border-gray-800 hover:border-white transition-all duration-300"
+                  <a key={idx} href={item.href}
+                    target={item.href.startsWith("http") ? "_blank" : undefined}
+                    rel="noopener noreferrer"
+                    onMouseEnter={() => setHoveredLink(key)}
+                    onMouseLeave={() => setHoveredLink(null)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: idx < contactInfo.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", textDecoration: "none", transition: "all 0.2s" }}
                   >
-                    <Icon className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                    <span className="text-gray-300 group-hover:text-white transition-colors flex-1" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                      {item.text}
-                    </span>
-                    <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-white transition-all" />
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: hoveredLink === key ? NAVY : "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }}>
+                      <Icon size={13} color={hoveredLink === key ? "#fff" : "rgba(255,255,255,0.4)"} />
+                    </div>
+                    <span style={{ fontSize: 13, color: hoveredLink === key ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: 500, transition: "color 0.2s" }}>{item.text}</span>
+                    <ArrowUpRight size={12} color={hoveredLink === key ? ORANGE : "transparent"} style={{ marginLeft: "auto", transition: "color 0.2s" }} />
                   </a>
                 );
               })}
             </div>
           </div>
 
-          {/* Links Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20">
-            
-            {/* Services */}
-            <div>
-              <div className="mb-6">
-                <div className="w-12 h-px bg-white mb-3"></div>
-                <h4 className="text-sm uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.sections.services')}
-                </h4>
-              </div>
-              <ul className="space-y-3">
-                {services.map((service, idx) => {
-                  const Icon = service.icon;
-                  return (
-                    <li key={idx}>
-                      <NavLink
-                        to={service.href}
-                        className="group flex items-center gap-2 text-gray-400 hover:text-white transition-all duration-300"
-                        style={{ fontFamily: 'Poppins, sans-serif' }}
-                      >
-                        <Icon className="w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                        <span>{service.label}</span>
-                      </NavLink>
-                    </li>
-                  );
-                })}
-              </ul>
+          {/* Services */}
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ width: 16, height: 2, background: ORANGE, marginBottom: 8 }} />
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>
+                {t("footer.sections.services", "Services")}
+              </span>
             </div>
-
-            {/* Navigation */}
-            <div>
-              <div className="mb-6">
-                <div className="w-12 h-px bg-white mb-3"></div>
-                <h4 className="text-sm uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.sections.navigation')}
-                </h4>
-              </div>
-              <ul className="space-y-3">
-                {quickLinks.slice(0, 4).map((link, idx) => (
-                  <li key={idx}>
-                    <NavLink
-                      to={link.href}
-                      className="text-gray-400 hover:text-white transition-colors duration-300"
-                      style={{ fontFamily: 'Poppins, sans-serif' }}
-                    >
-                      {link.label}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* More Links */}
-            <div>
-              <div className="mb-6">
-                <div className="w-12 h-px bg-white mb-3"></div>
-                <h4 className="text-sm uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.sections.company')}
-                </h4>
-              </div>
-              <ul className="space-y-3">
-                {quickLinks.slice(4).map((link, idx) => (
-                  <li key={idx}>
-                    <NavLink
-                      to={link.href}
-                      className="text-gray-400 hover:text-white transition-colors duration-300"
-                      style={{ fontFamily: 'Poppins, sans-serif' }}
-                    >
-                      {link.label}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Social */}
-            <div>
-              <div className="mb-6">
-                <div className="w-12 h-px bg-white mb-3"></div>
-                <h4 className="text-sm uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.sections.social')}
-                </h4>
-              </div>
-              <div className="space-y-3">
-                {socialLinks.map((social, idx) => {
-                  const Icon = social.icon;
-                  return (
-                    <a
-                      key={idx}
-                      href={social.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-3 text-gray-400 hover:text-white transition-all duration-300"
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span style={{ fontFamily: 'Poppins, sans-serif' }}>{social.name}</span>
-                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 ml-auto transition-all" />
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {services.map((s, idx) => (
+                <li key={idx}>
+                  <NavLink to={s.href}
+                    style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", textDecoration: "none", display: "flex", alignItems: "center", gap: 7, transition: "color 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#fff"}
+                    onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}
+                  >
+                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: ORANGE, flexShrink: 0 }} />
+                    {s.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Bottom Bar */}
-          <div className="pt-8 border-t border-white/20">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="text-gray-400 text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                © {new Date().getFullYear()} BETCOM AI. {t('footer.copyright')}
-              </div>
+          {/* Navigation */}
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ width: 16, height: 2, background: ORANGE, marginBottom: 8 }} />
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>
+                {t("footer.sections.navigation", "Navigation")}
+              </span>
+            </div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {quickLinks.map((link, idx) => (
+                <li key={idx}>
+                  <NavLink to={link.href}
+                    style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", textDecoration: "none", transition: "color 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#fff"}
+                    onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}
+                  >
+                    {link.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-              <div className="flex items-center gap-6 text-sm">
-                <a href="/mentions-legales" className="text-gray-400 hover:text-white transition-colors" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.legal.terms')}
-                </a>
-                <span className="text-gray-700">•</span>
-                <a href="/politique-confidentialite" className="text-gray-400 hover:text-white transition-colors" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.legal.privacy')}
-                </a>
-                <span className="text-gray-700">•</span>
-                <a href="/cgv" className="text-gray-400 hover:text-white transition-colors" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {t('footer.legal.cgv')}
-                </a>
-              </div>
+          {/* Social */}
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ width: 16, height: 2, background: ORANGE, marginBottom: 8 }} />
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>
+                {t("footer.sections.social", "Réseaux")}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {socialLinks.map((s, idx) => {
+                const Icon = s.icon;
+                const key = `social-${idx}`;
+                return (
+                  <a key={idx} href={s.url} target="_blank" rel="noopener noreferrer"
+                    onMouseEnter={() => setHoveredLink(key)}
+                    onMouseLeave={() => setHoveredLink(null)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", transition: "all 0.2s" }}
+                  >
+                    <div style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${hoveredLink === key ? ORANGE : "rgba(255,255,255,0.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", background: hoveredLink === key ? `${ORANGE}15` : "transparent" }}>
+                      <Icon size={13} color={hoveredLink === key ? ORANGE : "rgba(255,255,255,0.4)"} />
+                    </div>
+                    <span style={{ fontSize: 13, color: hoveredLink === key ? "#fff" : "rgba(255,255,255,0.45)", fontWeight: 500, transition: "color 0.2s" }}>
+                      {s.name}
+                    </span>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Bottom Line */}
-        <div className="h-1 bg-white"></div>
-      </footer>
-    </>
+        {/* ── BOTTOM BAR ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, paddingBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div style={{ width: 20, height: 20, borderRadius: 5, background: NAVY, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 8, fontWeight: 900, color: "#fff" }}>N</span>
+              </div>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontWeight: 600 }}>
+                © {new Date().getFullYear()} NEXUS BTP Consulting
+              </span>
+            </div>
+            <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)" }}>
+              {t("footer.copyright", "Tous droits réservés")}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            {[
+              { label: t("footer.legal.terms",  "Mentions légales"),  href: "/mentions-legales" },
+              { label: t("footer.legal.privacy", "Confidentialité"),   href: "/politique-confidentialite" },
+              { label: t("footer.legal.cgv",     "CGV"),               href: "/cgv" },
+            ].map((l, idx) => (
+              <a key={idx} href={l.href}
+                style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textDecoration: "none", transition: "color 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.6)"}
+                onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.2)"}
+              >
+                {l.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Bottom accent bar ── */}
+      <div style={{ height: 4, background: `linear-gradient(90deg, ${ORANGE} 0%, ${NAVY} 100%)` }} />
+    </footer>
   );
 };
 

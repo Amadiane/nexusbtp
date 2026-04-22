@@ -1,667 +1,448 @@
 import { useEffect, useState } from "react";
 import CONFIG from "../../config/config.js";
 import {
-  PlusCircle,
-  Image as ImageIcon,
-  Loader2,
-  Edit2,
-  Trash2,
-  X,
-  Eye,
-  Sparkles,
-  Save,
-  RefreshCw,
-  List,
-  FileText,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  AlertCircle
+  Plus, Image as ImageIcon, Loader2, Edit2, Trash2, X,
+  Eye, Save, RefreshCw, FileText, Calendar,
+  ChevronLeft, ChevronRight, Check, ArrowLeft, Newspaper
 } from "lucide-react";
 
+const NAVY   = "#003893";
+const ORANGE = "#EA580C";
+
 const NewsPost = () => {
-  const [newsList, setNewsList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [newsList, setNewsList]         = useState([]);
+  const [loading, setLoading]           = useState(false);
   const [selectedNews, setSelectedNews] = useState(null);
+  const [title_fr, setTitleFr]          = useState("");
+  const [title_en, setTitleEn]          = useState("");
+  const [content_fr, setContentFr]      = useState("");
+  const [content_en, setContentEn]      = useState("");
+  const [imageFile, setImageFile]       = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isActive, setIsActive]         = useState(true);
+  const [editingId, setEditingId]       = useState(null);
+  const [view, setView]                 = useState("list"); // "list" | "form" | "detail"
+  const [uploadStep, setUploadStep]     = useState("");
+  const [currentPage, setCurrentPage]  = useState(1);
+  const itemsPerPage = 6;
 
-  // FORM STATES
-  const [title_fr, setTitleFr] = useState("");
-  const [title_en, setTitleEn] = useState("");
-  const [content_fr, setContentFr] = useState("");
-  const [content_en, setContentEn] = useState("");
-  const [imageFile, setImageFile] = useState(null);
-  const [isActive, setIsActive] = useState(true);
+  /* ── helpers ── */
+  const getImage = (item) => {
+    if (!item) return null;
+    const raw = item.image_url || item.image || null;
+    if (!raw) return null;
+    if (typeof raw === "string" && (raw.startsWith("/media") || raw.startsWith("media/")))
+      return `${CONFIG.BASE_URL}/${raw.replace(/^\//, "")}`;
+    return raw;
+  };
 
-  const [editingId, setEditingId] = useState(null);
+  const authHeaders = () => {
+    const token = localStorage.getItem("access");
+    return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  };
 
-  // UI STATES
-  const [showForm, setShowForm] = useState(false);
-  const [showList, setShowList] = useState(true);
-
-  // PAGINATION
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  // FETCH NEWS LIST
+  /* ── fetch ── */
   const fetchNews = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${CONFIG.BASE_URL}/api/news/`);
+      const token = localStorage.getItem("access");
+      const res = await fetch(`${CONFIG.BASE_URL}/api/news/`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       const data = await res.json();
-      setNewsList(data);
-    } catch (error) {
-      console.error("FETCH ERROR:", error);
-    } finally {
-      setLoading(false);
-    }
+      setNewsList(Array.isArray(data) ? data : (data.results ?? []));
+    } catch (e) { console.error(e); setNewsList([]); }
+    finally { setLoading(false); }
   };
 
+  useEffect(() => { fetchNews(); }, []);
+
+  /* ── image preview ── */
   useEffect(() => {
-    fetchNews();
-  }, []);
+    if (!imageFile) { setImagePreview(null); return; }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
-  // CLOUDINARY UPLOAD
-  const uploadImageToCloudinary = async () => {
+  /* ── cloudinary ── */
+  const uploadImage = async () => {
     if (!imageFile) return null;
-
-    const formData = new FormData();
-    formData.append("file", imageFile);
-    formData.append("upload_preset", CONFIG.CLOUDINARY_UPLOAD_PRESET);
-
-    const uploadRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY_NAME}/image/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    const uploaded = await uploadRes.json();
-    if (uploaded.secure_url) return uploaded.secure_url;
-
-    console.error("Cloudinary upload failed:", uploaded);
-    return null;
+    const fd = new FormData();
+    fd.append("file", imageFile);
+    fd.append("upload_preset", CONFIG.CLOUDINARY_UPLOAD_PRESET);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY_NAME}/image/upload`, { method: "POST", body: fd });
+    const data = await res.json();
+    return data.secure_url ?? null;
   };
 
-  // CREATE OR UPDATE NEWS
+  /* ── submit ── */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    let image_url = selectedNews?.image_url || null;
-    if (imageFile) {
-      image_url = await uploadImageToCloudinary();
-    }
-
-    const payload = {
-      title_fr,
-      title_en,
-      content_fr,
-      content_en,
-      image: image_url,
-      is_active: isActive,
-    };
-
+    let image_url = editingId ? (getImage(selectedNews) || null) : null;
+    if (imageFile) { setUploadStep("uploading"); image_url = await uploadImage(); }
+    setUploadStep("saving");
+    const payload = { title_fr, title_en, content_fr, content_en, image: image_url, is_active: isActive };
     try {
       const method = editingId ? "PUT" : "POST";
-      const url = editingId
-        ? `${CONFIG.BASE_URL}/api/news/${editingId}/`
-        : `${CONFIG.BASE_URL}/api/news/`;
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      await res.json();
+      const url = editingId ? `${CONFIG.BASE_URL}/api/news/${editingId}/` : `${CONFIG.BASE_URL}/api/news/`;
+      await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(payload) });
       await fetchNews();
       resetForm();
-      setShowForm(false);
-      setShowList(true);
-    } catch (error) {
-      console.error("SAVE ERROR:", error);
-    }
-
-    setLoading(false);
+      setView("list");
+    } catch (err) { console.error(err); }
+    setUploadStep(""); setLoading(false);
   };
 
-  // DELETE
+  /* ── delete ── */
   const deleteNews = async (id) => {
     if (!window.confirm("Supprimer cette actualité ?")) return;
-
     try {
-      await fetch(`${CONFIG.BASE_URL}/api/news/${id}/`, {
-        method: "DELETE",
-      });
+      await fetch(`${CONFIG.BASE_URL}/api/news/${id}/`, { method: "DELETE", headers: authHeaders() });
       await fetchNews();
+      if (view === "detail") setView("list");
       setSelectedNews(null);
-    } catch (error) {
-      console.error("DELETE ERROR:", error);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  // EDIT
+  /* ── edit ── */
   const editNews = (news) => {
-    setEditingId(news.id);
-    setTitleFr(news.title_fr);
-    setTitleEn(news.title_en);
-    setContentFr(news.content_fr);
-    setContentEn(news.content_en);
-    setIsActive(news.is_active !== undefined ? news.is_active : news.isActive);
-    setShowForm(true);
-    setShowList(false);
+    setEditingId(news.id); setSelectedNews(news);
+    setTitleFr(news.title_fr ?? ""); setTitleEn(news.title_en ?? "");
+    setContentFr(news.content_fr ?? ""); setContentEn(news.content_en ?? "");
+    setIsActive(news.is_active ?? true);
+    setImageFile(null); setImagePreview(null);
+    setView("form");
   };
 
-  // RESET FORM
   const resetForm = () => {
-    setEditingId(null);
-    setTitleFr("");
-    setTitleEn("");
-    setContentFr("");
-    setContentEn("");
-    setImageFile(null);
-    setIsActive(true);
+    setEditingId(null); setSelectedNews(null);
+    setTitleFr(""); setTitleEn(""); setContentFr(""); setContentEn("");
+    setImageFile(null); setImagePreview(null); setIsActive(true);
   };
 
-  // PAGINATION LOGIC
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = newsList.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(newsList.length / itemsPerPage);
+  /* ── pagination ── */
+  const totalPages   = Math.ceil(newsList.length / itemsPerPage);
+  const currentItems = newsList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  /* ── common styles ── */
+  const card = { background: "#fff", borderRadius: 16, border: "1px solid #ebebeb" };
+  const inputCls = {
+    width: "100%", padding: "12px 16px", border: "1.5px solid #e5e5e5",
+    borderRadius: 10, fontSize: 14, fontFamily: "inherit", outline: "none",
+    transition: "border-color 0.2s", background: "#fafafa",
   };
+  const labelCls = { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888", marginBottom: 8, display: "block" };
+  const btnPrimary = { display: "flex", alignItems: "center", gap: 8, padding: "11px 24px", background: NAVY, color: "#fff", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "inherit", transition: "all 0.2s" };
+  const btnSecondary = { display: "flex", alignItems: "center", gap: 8, padding: "11px 20px", background: "#f5f5f5", color: "#555", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", transition: "all 0.2s" };
 
+  /* ════════════════════════════════ RENDER ════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* HEADER MODERNE */}
-        <div className="mb-8">
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6 md:p-8">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#FDB71A] via-[#F47920] to-[#E84E1B] opacity-0 group-hover:opacity-20 blur-xl transition-opacity rounded-2xl"></div>
-                  <div className="relative w-14 h-14 bg-gradient-to-br from-[#FDB71A] via-[#F47920] to-[#E84E1B] rounded-2xl flex items-center justify-center shadow-lg">
-                    <Sparkles className="text-white w-7 h-7" />
-                  </div>
-                </div>
+    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", minHeight: "100vh" }}>
+      <style>{`
+        .ni:hover { background: #f7f9ff !important; border-color: ${NAVY}30 !important; }
+        .btn-p:hover { background: #001f5c !important; transform: translateY(-1px); }
+        .btn-s:hover { background: #ebebeb !important; }
+        .btn-d:hover { background: #fee2e2 !important; }
+        input:focus, textarea:focus { border-color: ${NAVY} !important; background: #fff !important; box-shadow: 0 0 0 3px ${NAVY}12 !important; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation: fadeUp 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+      `}</style>
 
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-black text-gray-900">
-                    Gestion des Actualités
-                  </h1>
-                  <p className="text-gray-500 font-medium mt-1">Créez et gérez vos publications</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={fetchNews}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-semibold hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                  Actualiser
-                </button>
-
-                <button
-                  onClick={() => {
-                    setShowForm(!showForm);
-                    if (!showForm) {
-                      resetForm();
-                      setShowList(false);
-                    } else {
-                      setShowList(true);
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#FDB71A] via-[#F47920] to-[#E84E1B] text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
-                >
-                  {showForm ? (
-                    <>
-                      <X className="w-5 h-5" />
-                      Fermer
-                    </>
-                  ) : (
-                    <>
-                      <PlusCircle className="w-5 h-5" />
-                      Nouveau Post
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+      {/* ── TOP HEADER ── */}
+      <div style={{ ...card, padding: "20px 28px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {view !== "list" && (
+            <button onClick={() => { resetForm(); setView("list"); }} style={{ ...btnSecondary, padding: "9px 14px" }} className="btn-s">
+              <ArrowLeft size={16} />
+            </button>
+          )}
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${NAVY}, #0052cc)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Newspaper size={20} color="#fff" />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 800, color: "#0a0a0a", margin: 0, letterSpacing: "-0.02em" }}>
+              Gestion des Actualités
+            </h1>
+            <p style={{ fontSize: 12, color: "#aaa", margin: 0, marginTop: 2 }}>
+              {view === "list" ? `${newsList.length} articles` : view === "form" ? (editingId ? "Modifier l'article" : "Nouvel article") : "Aperçu"}
+            </p>
           </div>
         </div>
 
-        {/* FORMULAIRE */}
-        {showForm && (
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6 md:p-8 mb-8">
-            <form onSubmit={handleSubmit}>
-              {/* En-tête du formulaire */}
-              <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-200">
-                <div className="w-1 h-8 bg-gradient-to-b from-[#FDB71A] to-[#E84E1B] rounded-full"></div>
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {editingId ? "Modifier l'actualité" : "Nouvelle actualité"}
-                </h3>
-              </div>
-
-              {/* Grille des champs */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="space-y-2">
-                  <label className="font-semibold text-gray-700 text-sm">
-                    Titre (FR) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-[#F47920] focus:ring-2 focus:ring-[#F47920]/20 transition-all bg-white font-medium"
-                    value={title_fr}
-                    onChange={(e) => setTitleFr(e.target.value)}
-                    placeholder="Entrez le titre en français..."
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="font-semibold text-gray-700 text-sm">
-                    Title (EN)
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-[#F47920] focus:ring-2 focus:ring-[#F47920]/20 transition-all bg-white font-medium"
-                    value={title_en}
-                    onChange={(e) => setTitleEn(e.target.value)}
-                    placeholder="Enter title in English..."
-                  />
-                </div>
-              </div>
-
-              {/* Contenus */}
-              <div className="space-y-6 mb-6">
-                <div className="space-y-2">
-                  <label className="font-semibold text-gray-700 text-sm">
-                    Contenu (FR) <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-[#F47920] focus:ring-2 focus:ring-[#F47920]/20 transition-all bg-white font-medium resize-none"
-                    rows="5"
-                    value={content_fr}
-                    onChange={(e) => setContentFr(e.target.value)}
-                    placeholder="Rédigez votre contenu en français..."
-                    required
-                  ></textarea>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="font-semibold text-gray-700 text-sm">
-                    Content (EN)
-                  </label>
-                  <textarea
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-[#F47920] focus:ring-2 focus:ring-[#F47920]/20 transition-all bg-white font-medium resize-none"
-                    rows="5"
-                    value={content_en}
-                    onChange={(e) => setContentEn(e.target.value)}
-                    placeholder="Write your content in English..."
-                  ></textarea>
-                </div>
-              </div>
-
-              {/* Image et statut */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="space-y-3">
-                  <label className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-[#F47920]" />
-                    Image
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gradient-to-r file:from-[#FDB71A] file:to-[#F47920] file:text-white hover:file:scale-105 file:transition-all file:cursor-pointer focus:border-[#F47920]"
-                      onChange={(e) => setImageFile(e.target.files[0])}
-                      accept="image/*"
-                    />
-                  </div>
-                  {imageFile && (
-                    <p className="text-sm text-[#F47920] font-medium">
-                      ✓ {imageFile.name}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <label className="font-semibold text-gray-700 text-sm">Statut de publication</label>
-                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-300">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={isActive}
-                      onChange={() => setIsActive(!isActive)}
-                      className="w-5 h-5 rounded accent-[#FDB71A] cursor-pointer"
-                    />
-                    <label htmlFor="isActive" className="font-semibold text-gray-700 cursor-pointer flex items-center gap-2">
-                      {isActive ? (
-                        <>
-                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                          Actualité active
-                        </>
-                      ) : (
-                        <>
-                          <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                          Actualité inactive
-                        </>
-                      )}
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Boutons d'action */}
-              <div className="flex flex-wrap gap-3 pt-6 border-t border-gray-200">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-3 bg-gradient-to-r from-[#FDB71A] via-[#F47920] to-[#E84E1B] text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="animate-spin w-5 h-5" />
-                      Enregistrement...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      {editingId ? "Mettre à jour" : "Créer l'actualité"}
-                    </>
-                  )}
-                </button>
-
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetForm();
-                      setShowForm(false);
-                      setShowList(true);
-                    }}
-                    className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:border-gray-400 hover:shadow-md transition-all duration-200 flex items-center gap-2"
-                  >
-                    <X className="w-5 h-5" />
-                    Annuler
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* LISTE DES ACTUALITÉS */}
-        {showList && (
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
-            {/* En-tête */}
-            <div className="p-6 md:p-8 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-1 h-8 bg-gradient-to-b from-[#FDB71A] to-[#E84E1B] rounded-full"></div>
-                  <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                    Liste des actualités
-                    <span className="bg-gradient-to-r from-[#FDB71A] to-[#F47920] text-white px-3 py-1 rounded-full font-semibold text-sm">
-                      {newsList.length}
-                    </span>
-                  </h3>
-                </div>
-              </div>
-            </div>
-
-            {/* Contenu */}
-            <div className="p-6 md:p-8">
-              {loading ? (
-                <div className="text-center py-12">
-                  <Loader2 className="w-12 h-12 text-[#F47920] animate-spin mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium">Chargement...</p>
-                </div>
-              ) : newsList.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <FileText className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <p className="text-gray-500 font-medium">Aucune actualité pour le moment</p>
-                  <p className="text-gray-400 text-sm mt-1">Créez votre première actualité</p>
-                </div>
-              ) : (
-                <>
-                  {/* Grille */}
-                  <div className="grid gap-6 mb-6">
-                    {currentItems.map((item) => {
-                      const itemIsActive = item.is_active !== undefined ? item.is_active : item.isActive;
-                      
-                      return (
-                        <div
-                          key={item.id}
-                          className="group relative bg-white/60 backdrop-blur-md rounded-2xl shadow-lg hover:shadow-2xl hover:shadow-orange-400/30 transition-all duration-300 overflow-hidden border-2 border-transparent hover:border-[#FDB71A]/50"
-                        >
-                          <div className="flex flex-col md:flex-row gap-4 p-4">
-                            {/* Image */}
-                            {item.image_url && (
-                              <div className="relative w-full md:w-48 h-48 flex-shrink-0 overflow-hidden rounded-xl">
-                                <img
-                                  src={item.image_url}
-                                  alt=""
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                />
-                                <div className="absolute top-2 right-2">
-                                  {itemIsActive ? (
-                                    <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
-                                      <Check className="w-3 h-3" />
-                                      Actif
-                                    </span>
-                                  ) : (
-                                    <span className="bg-gray-400 text-white px-2 py-1 rounded-full text-xs font-semibold shadow-lg">
-                                      Inactif
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Contenu */}
-                            <div className="flex-1 flex flex-col justify-between min-w-0">
-                              <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="text-xl font-black text-gray-800 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-[#E84E1B] group-hover:via-[#F47920] group-hover:to-[#FDB71A] transition-all">
-                                    {item.title_fr}
-                                  </h4>
-                                  {!itemIsActive && (
-                                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-semibold">
-                                      Masqué
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed mb-2">
-                                  {item.content_fr}
-                                </p>
-                                {item.created_at && (
-                                  <p className="text-xs text-gray-400 flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(item.created_at).toLocaleDateString('fr-FR')}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Actions */}
-                              <div className="flex flex-wrap gap-3 mt-4">
-                                <button
-                                  onClick={() => setSelectedNews(item)}
-                                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-bold rounded-xl hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
-                                >
-                                  <Eye size={16} />
-                                  Voir
-                                </button>
-
-                                <button
-                                  onClick={() => {
-                                    editNews(item);
-                                    window.scrollTo({ top: 0, behavior: "smooth" });
-                                  }}
-                                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FDB71A] to-[#F47920] text-white text-sm font-bold rounded-xl hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
-                                >
-                                  <Edit2 size={16} />
-                                  Modifier
-                                </button>
-
-                                <button
-                                  onClick={() => deleteNews(item.id)}
-                                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-bold rounded-xl hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
-                                >
-                                  <Trash2 size={16} />
-                                  Supprimer
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 pt-6 border-t border-gray-200">
-                      <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </button>
-
-                      {[...Array(totalPages)].map((_, index) => {
-                        const pageNumber = index + 1;
-                        return (
-                          <button
-                            key={pageNumber}
-                            onClick={() => handlePageChange(pageNumber)}
-                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                              currentPage === pageNumber
-                                ? "bg-gradient-to-r from-[#FDB71A] to-[#F47920] text-white"
-                                : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
-                          >
-                            {pageNumber}
-                          </button>
-                        );
-                      })}
-
-                      <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 10 }}>
+          {view === "list" && (
+            <>
+              <button onClick={fetchNews} disabled={loading} style={btnSecondary} className="btn-s">
+                <RefreshCw size={14} style={{ animation: loading ? "spin 0.8s linear infinite" : "none" }} />
+                Actualiser
+              </button>
+              <button onClick={() => { resetForm(); setView("form"); }} style={btnPrimary} className="btn-p">
+                <Plus size={16} /> Nouveau post
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* MODAL DÉTAIL */}
-      {selectedNews && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center px-4 z-50"
-          onClick={() => setSelectedNews(null)}
-        >
-          <div 
-            className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* En-tête modal */}
-            <div className="bg-gradient-to-r from-[#FDB71A] via-[#F47920] to-[#E84E1B] p-6 relative">
-              <button
-                className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
-                onClick={() => setSelectedNews(null)}
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
+      {/* ════ VIEW: FORM ════ */}
+      {view === "form" && (
+        <div style={{ ...card, padding: "32px 36px" }} className="fade-up">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, paddingBottom: 24, borderBottom: "1px solid #f0f0f0" }}>
+            <div style={{ width: 4, height: 24, background: `linear-gradient(${NAVY}, ${ORANGE})`, borderRadius: 2 }} />
+            <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: "#0a0a0a" }}>
+              {editingId ? "Modifier l'actualité" : "Nouvelle actualité"}
+            </h2>
+          </div>
 
-              <h2 className="text-2xl font-bold text-white pr-12">
-                {selectedNews.title_fr}
-              </h2>
-              {selectedNews.title_en && (
-                <p className="text-white/80 text-sm mt-1">
-                  {selectedNews.title_en}
-                </p>
-              )}
+          <form onSubmit={handleSubmit}>
+            {/* Titres */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+              {[
+                { label: "Titre français *", val: title_fr, set: setTitleFr, ph: "Entrez le titre...", req: true },
+                { label: "Title English", val: title_en, set: setTitleEn, ph: "Enter title..." },
+              ].map(({ label, val, set, ph, req }) => (
+                <div key={label}>
+                  <label style={labelCls}>{label}</label>
+                  <input type="text" value={val} onChange={e => set(e.target.value)} placeholder={ph} required={req}
+                    style={inputCls} />
+                </div>
+              ))}
             </div>
 
-            {/* Contenu modal */}
-            <div className="p-6 overflow-y-auto flex-1">
-              {selectedNews.image_url && (
-                <img
-                  src={selectedNews.image_url}
-                  className="w-full h-80 object-cover rounded-xl mb-6"
-                  alt=""
-                />
-              )}
-
-              <div className="space-y-4">
-                <div className="bg-orange-50 p-4 rounded-xl border-l-4 border-[#FDB71A]">
-                  <h3 className="font-semibold text-gray-700 mb-2 text-sm">Français</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {selectedNews.content_fr}
-                  </p>
+            {/* Contenus */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+              {[
+                { label: "Contenu français *", val: content_fr, set: setContentFr, ph: "Rédigez le contenu...", req: true },
+                { label: "Content English", val: content_en, set: setContentEn, ph: "Write content..." },
+              ].map(({ label, val, set, ph, req }) => (
+                <div key={label}>
+                  <label style={labelCls}>{label}</label>
+                  <textarea value={val} onChange={e => set(e.target.value)} placeholder={ph} required={req} rows={7}
+                    style={{ ...inputCls, resize: "vertical" }} />
                 </div>
+              ))}
+            </div>
 
-                {selectedNews.content_en && (
-                  <div className="bg-red-50 p-4 rounded-xl border-l-4 border-[#F47920]">
-                    <h3 className="font-semibold text-gray-700 mb-2 text-sm">English</h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">
-                      {selectedNews.content_en}
-                    </p>
+            {/* Image + Statut */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
+              {/* Image upload */}
+              <div>
+                <label style={labelCls}>Image de couverture</label>
+                <label style={{ display: "block", border: "2px dashed #e0e0e0", borderRadius: 12, padding: 20, cursor: "pointer", transition: "border-color 0.2s", textAlign: "center" }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = NAVY}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = "#e0e0e0"}>
+                  <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} style={{ display: "none" }} />
+                  {imagePreview ? (
+                    <div style={{ position: "relative" }}>
+                      <img src={imagePreview} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 8 }} alt="" />
+                      <div style={{ marginTop: 8, fontSize: 12, color: NAVY, fontWeight: 600 }}>✓ {imageFile?.name}</div>
+                    </div>
+                  ) : getImage(selectedNews) ? (
+                    <div>
+                      <img src={getImage(selectedNews)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 8 }} alt="" />
+                      <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>Cliquer pour changer</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <ImageIcon size={32} color="#ccc" style={{ margin: "0 auto 8px" }} />
+                      <div style={{ fontSize: 13, color: "#aaa" }}>Cliquer pour choisir une image</div>
+                      <div style={{ fontSize: 11, color: "#ccc", marginTop: 4 }}>JPG, PNG, WebP</div>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Statut */}
+              <div>
+                <label style={labelCls}>Statut de publication</label>
+                <div
+                  onClick={() => setIsActive(!isActive)}
+                  style={{ border: `2px solid ${isActive ? NAVY : "#e0e0e0"}`, borderRadius: 12, padding: 20, cursor: "pointer", background: isActive ? `${NAVY}05` : "#fafafa", transition: "all 0.2s" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${isActive ? NAVY : "#ccc"}`, background: isActive ? NAVY : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>
+                      {isActive && <Check size={12} color="#fff" />}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: isActive ? NAVY : "#888" }}>
+                        {isActive ? "Article actif" : "Article inactif"}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>
+                        {isActive ? "Visible sur le site public" : "Non visible pour les visiteurs"}
+                      </div>
+                    </div>
+                    <div style={{ marginLeft: "auto", width: 8, height: 8, borderRadius: "50%", background: isActive ? "#10b981" : "#d1d5db" }} />
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* Actions modal */}
-            <div className="bg-gray-50 p-6 flex justify-end gap-3 border-t border-gray-200">
-              <button
-                className="px-4 py-2 bg-gradient-to-r from-[#FDB71A] to-[#F47920] text-white rounded-lg font-semibold hover:shadow-md transition-all flex items-center gap-2"
-                onClick={() => {
-                  editNews(selectedNews);
-                  setSelectedNews(null);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              >
-                <Edit2 className="w-4 h-4" />
-                Modifier
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 12, paddingTop: 24, borderTop: "1px solid #f0f0f0" }}>
+              <button type="submit" disabled={loading} style={{ ...btnPrimary, minWidth: 180, justifyContent: "center" }} className="btn-p">
+                {uploadStep === "uploading" ? <><Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> Upload image...</>
+                  : uploadStep === "saving" ? <><Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> Sauvegarde...</>
+                  : loading ? <><Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> Chargement...</>
+                  : <><Save size={16} />{editingId ? "Mettre à jour" : "Créer l'article"}</>}
               </button>
+              <button type="button" onClick={() => { resetForm(); setView("list"); }} style={btnSecondary} className="btn-s">
+                <X size={15} /> Annuler
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
-              <button
-                className="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors flex items-center gap-2"
-                onClick={() => deleteNews(selectedNews.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-                Supprimer
+      {/* ════ VIEW: LIST ════ */}
+      {view === "list" && (
+        <div style={{ ...card, overflow: "hidden" }} className="fade-up">
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "80px 0" }}>
+              <Loader2 size={36} color={NAVY} style={{ animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+              <p style={{ color: "#aaa", fontSize: 13 }}>Chargement...</p>
+            </div>
+          ) : newsList.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "80px 0" }}>
+              <FileText size={40} color="#ddd" style={{ margin: "0 auto 16px" }} />
+              <p style={{ color: "#aaa", fontSize: 15, marginBottom: 20 }}>Aucune actualité pour le moment</p>
+              <button onClick={() => { resetForm(); setView("form"); }} style={btnPrimary} className="btn-p">
+                <Plus size={15} /> Créer le premier article
               </button>
+            </div>
+          ) : (
+            <>
+              {/* Table header */}
+              <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 140px 100px 140px", gap: 0, padding: "12px 24px", borderBottom: "1px solid #f5f5f5", background: "#fafafa" }}>
+                {["", "Article", "Date", "Statut", "Actions"].map(h => (
+                  <span key={h} style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", color: "#bbb" }}>{h}</span>
+                ))}
+              </div>
 
-              <button
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2"
-                onClick={() => setSelectedNews(null)}
-              >
-                <X className="w-4 h-4" />
-                Fermer
-              </button>
+              {/* Rows */}
+              {currentItems.map((item, idx) => {
+                const img    = getImage(item);
+                const active = item.is_active ?? item.isActive;
+                return (
+                  <div key={item.id} className="ni" style={{ display: "grid", gridTemplateColumns: "56px 1fr 140px 100px 140px", gap: 0, padding: "16px 24px", borderBottom: "1px solid #f8f8f8", alignItems: "center", cursor: "pointer", transition: "all 0.15s", animation: `fadeUp 0.4s ease ${idx * 0.05}s both` }}
+                    onClick={() => { setSelectedNews(item); setView("detail"); }}>
+                    {/* Thumbnail */}
+                    <div style={{ width: 40, height: 40, borderRadius: 8, overflow: "hidden", background: "#f5f5f5", flexShrink: 0 }}>
+                      {img
+                        ? <img src={img} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+                        : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#ccc" }}>📰</div>
+                      }
+                    </div>
+                    {/* Title + excerpt */}
+                    <div style={{ paddingLeft: 4 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#0a0a0a", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 360 }}>{item.title_fr}</div>
+                      <div style={{ fontSize: 12, color: "#aaa", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 360 }}>{item.content_fr?.slice(0, 80)}…</div>
+                    </div>
+                    {/* Date */}
+                    <div style={{ fontSize: 12, color: "#aaa", display: "flex", alignItems: "center", gap: 5 }}>
+                      <Calendar size={11} />
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR") : "—"}
+                    </div>
+                    {/* Status */}
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: active ? "#d1fae5" : "#f3f4f6", color: active ? "#065f46" : "#9ca3af" }}>
+                        {active ? "Actif" : "Inactif"}
+                      </span>
+                    </div>
+                    {/* Actions */}
+                    <div style={{ display: "flex", gap: 6 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => editNews(item)} title="Modifier"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: `${NAVY}12`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = `${NAVY}25`}
+                        onMouseLeave={e => e.currentTarget.style.background = `${NAVY}12`}>
+                        <Edit2 size={13} color={NAVY} />
+                      </button>
+                      <button onClick={() => deleteNews(item.id)} title="Supprimer"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "#fee2e2", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#fca5a5"}
+                        onMouseLeave={e => e.currentTarget.style.background = "#fee2e2"}>
+                        <Trash2 size={13} color="#ef4444" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderTop: "1px solid #f5f5f5" }}>
+                  <span style={{ fontSize: 12, color: "#aaa" }}>
+                    Page {currentPage} sur {totalPages} · {newsList.length} articles
+                  </span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      style={{ ...btnSecondary, padding: "7px 12px", opacity: currentPage === 1 ? 0.4 : 1 }}>
+                      <ChevronLeft size={14} />
+                    </button>
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button key={i} onClick={() => setCurrentPage(i + 1)}
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: currentPage === i + 1 ? NAVY : "#f5f5f5", color: currentPage === i + 1 ? "#fff" : "#555" }}>
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      style={{ ...btnSecondary, padding: "7px 12px", opacity: currentPage === totalPages ? 0.4 : 1 }}>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ════ VIEW: DETAIL ════ */}
+      {view === "detail" && selectedNews && (
+        <div style={{ ...card, overflow: "hidden" }} className="fade-up">
+          {getImage(selectedNews) && (
+            <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
+              <img src={getImage(selectedNews)} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.5), transparent)" }} />
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
+            </div>
+          )}
+          <div style={{ padding: "32px 36px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 24 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+                  {selectedNews.created_at ? new Date(selectedNews.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : ""}
+                </div>
+                <h2 style={{ fontSize: 28, fontWeight: 900, color: "#0a0a0a", margin: 0, letterSpacing: "-0.02em", fontFamily: "'Creato Display', sans-serif", lineHeight: 1.2 }}>
+                  {selectedNews.title_fr}
+                </h2>
+                {selectedNews.title_en && <p style={{ fontSize: 16, color: "#888", marginTop: 6, fontWeight: 300 }}>{selectedNews.title_en}</p>}
+              </div>
+              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                <button onClick={() => editNews(selectedNews)} style={btnPrimary} className="btn-p">
+                  <Edit2 size={14} /> Modifier
+                </button>
+                <button onClick={() => deleteNews(selectedNews.id)} style={{ ...btnSecondary, color: "#ef4444" }} className="btn-d">
+                  <Trash2 size={14} /> Supprimer
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {[
+                { lang: "Français", content: selectedNews.content_fr, accent: NAVY },
+                { lang: "English", content: selectedNews.content_en, accent: ORANGE },
+              ].filter(x => x.content).map(({ lang, content, accent }) => (
+                <div key={lang} style={{ background: "#fafafa", borderRadius: 12, padding: "20px 24px", borderLeft: `3px solid ${accent}` }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", color: accent, marginBottom: 12 }}>{lang}</div>
+                  <p style={{ fontSize: 14, color: "#555", lineHeight: 1.8, whiteSpace: "pre-wrap", margin: 0 }}>{content}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
+
+      <style>{`@keyframes spin { to { transform:rotate(360deg); } }`}</style>
     </div>
   );
 };

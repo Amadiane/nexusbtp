@@ -98,7 +98,7 @@ const Navlinks = () => {
                   letterSpacing: '-0.02em'
                 }}
               >
-                BETCOM AI
+                NEXUS BTP CONSULTING
               </h1>
             </NavLink>
 
