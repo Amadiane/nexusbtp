@@ -118,7 +118,7 @@ const Login = () => {
                   </div>
                   <input
                     type="text"
-                    placeholder="admin@nexusbtp.com"
+                    placeholder="administrateur"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     onKeyDown={handleKeyDown}
