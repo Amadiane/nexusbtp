@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, Eye, EyeOff, Shield, ArrowRight, Building2 } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, Shield, ArrowRight } from 'lucide-react';
+import NexusLogo from '../../assets/logo.jpg';
 import CONFIG from '../../config/config.js';
-
-/**
- * 🏗️ LOGIN PAGE - BETCOM AI ULTRA MODERNE
- * Charte: Noir #000000, Blanc #ffffff, Gris
- * Style: Architecture minimaliste + Micro-interactions sophistiquées
- */
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,6 +12,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [remembered, setRemembered] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -25,9 +21,9 @@ const Login = () => {
 
     try {
       const response = await fetch(`${CONFIG.BASE_URL}${CONFIG.API_LOGIN}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
 
@@ -42,312 +38,573 @@ const Login = () => {
       }
     } catch (err) {
       console.log(err);
-      setError("Impossible de se connecter au serveur");
+      setError('Impossible de se connecter au serveur');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && username && password) {
-      handleLogin(e);
-    }
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && username && password) handleLogin(e);
   };
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden flex items-center justify-center p-4">
-      
-      {/* Animated Background Effects - Minimaliste */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Subtle orbs */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gray-50 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gray-100 rounded-full blur-3xl animate-float-delayed"></div>
-        
-        {/* Grid pattern ultra subtil */}
-        <div className="absolute inset-0 opacity-[0.015]" 
-             style={{
-               backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)',
-               backgroundSize: '50px 50px'
-             }}
-        ></div>
+    <div style={styles.page}>
+      {/* Background elements */}
+      <div style={styles.bgDots} />
+      <div style={styles.bgShape1} />
+      <div style={styles.bgShape2} />
+      <div style={styles.bgShapeTriangle} />
 
-        {/* Lignes architecturales */}
-        <div className="absolute top-1/4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
-        <div className="absolute bottom-1/4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
-      </div>
+      {/* Card */}
+      <div style={styles.cardWrapper}>
+        <div style={styles.card}>
+          {/* Top accent bar */}
+          <div style={styles.topBar} />
 
-      {/* Floating dots minimalistes */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-20 left-[10%] w-1 h-1 bg-black rounded-full animate-pulse-slow"></div>
-        <div className="absolute top-[30%] right-[15%] w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse-slow" style={{ animationDelay: '0.5s' }}></div>
-        <div className="absolute bottom-[20%] left-[20%] w-1 h-1 bg-gray-600 rounded-full animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-[40%] right-[10%] w-1.5 h-1.5 bg-black rounded-full animate-pulse-slow" style={{ animationDelay: '1.5s' }}></div>
-      </div>
-
-      {/* Main Login Card */}
-      <div className="relative w-full max-w-md z-10">
-        
-        {/* Ombre portée sophistiquée */}
-        <div className="absolute -inset-2 bg-black/5 rounded-3xl blur-2xl"></div>
-        
-        {/* Card Container */}
-        <div className="relative bg-white rounded-3xl shadow-2xl border-2 border-black overflow-hidden">
-          
-          {/* Top accent line */}
-          <div className="absolute top-0 left-0 right-0 h-2 bg-black"></div>
-
-          {/* Content */}
-          <div className="relative p-8 md:p-12">
-            
-            {/* Logo & Header */}
-            <div className="text-center mb-12">
-              {/* Animated Logo */}
-              <div className="relative inline-block mb-8">
-                <div className="absolute inset-0 bg-black/10 blur-2xl rounded-2xl animate-pulse-slow"></div>
-                <div className="relative w-24 h-24 bg-black rounded-2xl flex items-center justify-center mx-auto shadow-2xl transform hover:rotate-6 transition-all duration-500 group">
-                  <Building2 className="w-12 h-12 text-white group-hover:scale-110 transition-transform duration-500" />
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-white border-2 border-black rounded-full flex items-center justify-center animate-bounce-slow">
-                    <Shield className="w-3 h-3 text-black" />
+          <div style={styles.cardBody}>
+            {/* Header */}
+            <div style={styles.header}>
+              <div style={styles.logoArea}>
+                <div style={styles.logoBox}>
+                  <img src={NexusLogo} alt="Nexus BTP Consulting" style={styles.logoImg} />
+                </div>
+                <div style={styles.logoTextCol}>
+                  <div style={styles.brandName}>
+                    NEX<span style={styles.brandNameOrange}>US</span>
                   </div>
+                  <div style={styles.brandSub}>BTP Consulting</div>
                 </div>
               </div>
-              
-              <h1 className="text-5xl md:text-6xl font-bold mb-3 text-black tracking-tight" style={{ fontFamily: "'Creato Display', sans-serif" }}>
-                BETCOM
-              </h1>
-              <p className="text-gray-600 text-sm font-semibold tracking-wider uppercase mb-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Espace Administration
-              </p>
-              
-              {/* Divider ultra-minimaliste */}
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-16 h-px bg-gray-300"></div>
-                <div className="w-2 h-2 bg-black rounded-full animate-pulse"></div>
-                <div className="w-16 h-px bg-gray-300"></div>
+
+              <div style={styles.dividerRow}>
+                <div style={styles.dividerLine} />
+                <div style={styles.dividerDot} />
+                <div style={styles.dividerLine} />
               </div>
+
+              <p style={styles.headerTitle}>Espace Administration</p>
+              <p style={styles.headerSubtitle}>Accès sécurisé · Portail de gestion</p>
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
-              <div className="mb-8 relative animate-shake">
-                <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-2xl"></div>
-                <div className="relative bg-red-50 border-2 border-red-500 rounded-2xl p-5 backdrop-blur-sm">
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-sm font-bold">!</span>
-                    </div>
-                    <div>
-                      <p className="text-red-700 text-sm font-bold mb-1" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                        Erreur de connexion
-                      </p>
-                      <p className="text-red-600 text-xs leading-relaxed" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                        {error}
-                      </p>
-                    </div>
-                  </div>
+              <div style={styles.errorBox}>
+                <div style={styles.errorIcon}>!</div>
+                <div>
+                  <p style={styles.errorTitle}>Erreur de connexion</p>
+                  <p style={styles.errorText}>{error}</p>
                 </div>
               </div>
             )}
 
             {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-7">
-              
-              {/* Username Field */}
-              <div className="space-y-3">
-                <label className="text-black text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  <div className="w-1 h-1 bg-black rounded-full"></div>
+            <form onSubmit={handleLogin}>
+
+              {/* Username */}
+              <div style={styles.fieldGroup}>
+                <label style={styles.fieldLabel}>
+                  <span style={styles.labelDot} />
                   Nom d'utilisateur
                 </label>
-                <div className="relative group">
-                  {/* Focus effect */}
-                  <div className={`absolute -inset-1 bg-black rounded-2xl opacity-0 ${focusedField === 'username' ? 'opacity-100' : 'group-hover:opacity-5'} transition-opacity duration-300 blur-sm`}></div>
-                  
-                  <div className="relative flex items-center">
-                    {/* Icon container */}
-                    <div className="absolute left-4 w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    <input
-                      type="text"
-                      className="w-full pl-20 pr-6 py-5 bg-gray-50 border-2 border-gray-200 rounded-2xl text-black placeholder-gray-400 focus:outline-none focus:border-black focus:bg-white focus:shadow-xl transition-all duration-300 font-medium text-base"
-                      style={{ fontFamily: 'Poppins, sans-serif' }}
-                      placeholder="admin@betcom.ma"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      onFocus={() => setFocusedField('username')}
-                      onBlur={() => setFocusedField(null)}
-                    />
+                <div
+                  style={{
+                    ...styles.inputRow,
+                    ...(focusedField === 'username' ? styles.inputRowFocused : {}),
+                  }}
+                >
+                  <div style={styles.inputIcon}>
+                    <User size={18} color="#fff" strokeWidth={1.8} />
                   </div>
+                  <input
+                    type="text"
+                    placeholder="admin@nexusbtp.com"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => setFocusedField('username')}
+                    onBlur={() => setFocusedField(null)}
+                    style={styles.fieldInput}
+                    autoComplete="username"
+                  />
                 </div>
               </div>
 
-              {/* Password Field */}
-              <div className="space-y-3">
-                <label className="text-black text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  <div className="w-1 h-1 bg-black rounded-full"></div>
+              {/* Password */}
+              <div style={styles.fieldGroup}>
+                <label style={styles.fieldLabel}>
+                  <span style={styles.labelDot} />
                   Mot de passe
                 </label>
-                <div className="relative group">
-                  {/* Focus effect */}
-                  <div className={`absolute -inset-1 bg-black rounded-2xl opacity-0 ${focusedField === 'password' ? 'opacity-100' : 'group-hover:opacity-5'} transition-opacity duration-300 blur-sm`}></div>
-                  
-                  <div className="relative flex items-center">
-                    {/* Icon container */}
-                    <div className="absolute left-4 w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <Lock className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    <input
-                      type={passwordVisible ? "text" : "password"}
-                      className="w-full pl-20 pr-16 py-5 bg-gray-50 border-2 border-gray-200 rounded-2xl text-black placeholder-gray-400 focus:outline-none focus:border-black focus:bg-white focus:shadow-xl transition-all duration-300 font-medium text-base"
-                      style={{ fontFamily: 'Poppins, sans-serif' }}
-                      placeholder="••••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      onFocus={() => setFocusedField('password')}
-                      onBlur={() => setFocusedField(null)}
-                    />
-                    
-                    {/* Toggle visibility */}
-                    <button
-                      type="button"
-                      onClick={() => setPasswordVisible(!passwordVisible)}
-                      className="absolute right-4 p-3 hover:bg-gray-100 rounded-xl transition-all duration-300 group/eye"
-                    >
-                      {passwordVisible ? (
-                        <EyeOff className="w-5 h-5 text-gray-600 group-hover/eye:text-black transition-colors" />
-                      ) : (
-                        <Eye className="w-5 h-5 text-gray-400 group-hover/eye:text-black transition-colors" />
-                      )}
-                    </button>
+                <div
+                  style={{
+                    ...styles.inputRow,
+                    ...(focusedField === 'password' ? styles.inputRowFocused : {}),
+                  }}
+                >
+                  <div style={styles.inputIcon}>
+                    <Lock size={18} color="#fff" strokeWidth={1.8} />
                   </div>
+                  <input
+                    type={passwordVisible ? 'text' : 'password'}
+                    placeholder="••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
+                    style={styles.fieldInput}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPasswordVisible(!passwordVisible)}
+                    style={styles.toggleBtn}
+                  >
+                    {passwordVisible
+                      ? <EyeOff size={17} strokeWidth={1.8} />
+                      : <Eye size={17} strokeWidth={1.8} />}
+                  </button>
                 </div>
               </div>
 
-              {/* Remember & Forgot */}
-              <div className="flex items-center justify-between pt-2">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className="w-6 h-6 rounded-lg border-2 border-gray-300 bg-white flex items-center justify-center group-hover:border-black transition-all duration-300 relative">
-                    <div className="w-3 h-3 bg-black rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </div>
-                  <span className="text-sm text-gray-600 group-hover:text-black font-medium transition-colors" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    Se souvenir de moi
-                  </span>
-                </label>
-                
-                <a 
-                  href="#" 
-                  className="text-sm text-gray-600 hover:text-black font-semibold transition-all duration-300 flex items-center gap-2 group"
-                  style={{ fontFamily: 'Poppins, sans-serif' }}
+              {/* Remember / Forgot */}
+              <div style={styles.formFooter}>
+                <div
+                  style={styles.rememberLabel}
+                  onClick={() => setRemembered(!remembered)}
                 >
+                  <div style={{ ...styles.checkbox, ...(remembered ? styles.checkboxChecked : {}) }}>
+                    {remembered && (
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={styles.rememberText}>Se souvenir de moi</span>
+                </div>
+
+                <a href="#" style={styles.forgotLink}>
                   Mot de passe oublié ?
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  <ArrowRight size={13} strokeWidth={2} />
                 </a>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading || !username || !password}
-                className="relative w-full group/btn overflow-hidden mt-10"
+                style={{
+                  ...styles.submitBtn,
+                  ...(loading || !username || !password ? styles.submitBtnDisabled : {}),
+                }}
               >
-                {/* Background layers */}
-                <div className="absolute inset-0 bg-black group-hover/btn:bg-gray-900 transition-colors duration-300"></div>
-                
-                {/* Shine effect on hover */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000"></div>
-                
-                {/* Button content */}
-                <div className="relative flex items-center justify-center gap-3 py-5 px-6 rounded-2xl font-bold text-lg group-hover/btn:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 shadow-xl"
-                     style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {loading ? (
-                    <>
-                      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span className="text-white tracking-wider">CONNEXION...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-6 h-6 text-white group-hover/btn:rotate-12 transition-transform duration-300" />
-                      <span className="text-white tracking-wider">SE CONNECTER</span>
-                      <ArrowRight className="w-6 h-6 text-white group-hover/btn:translate-x-1 transition-transform duration-300" />
-                    </>
-                  )}
-                </div>
+                {loading ? (
+                  <>
+                    <div style={styles.spinner} />
+                    <span>Connexion en cours...</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield size={17} color="#fff" strokeWidth={2} />
+                    <span>SE CONNECTER</span>
+                    <ArrowRight size={17} color="#fff" strokeWidth={2} />
+                  </>
+                )}
+                <div style={styles.btnAccent} />
               </button>
             </form>
 
-            {/* Security Badge */}
-            <div className="mt-10 pt-8 border-t-2 border-gray-100">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="flex items-center gap-3 px-5 py-3 bg-green-50 border-2 border-green-500 rounded-full">
-                  <Lock className="w-4 h-4 text-green-600" />
-                  <span className="text-green-700 text-xs font-bold tracking-wide" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    CONNEXION SÉCURISÉE SSL
-                  </span>
-                </div>
-              </div>
-              
-              {/* Version & Copyright */}
-              <div className="text-center space-y-2">
-                <p className="text-gray-400 text-xs font-medium" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  BETCOM AI Admin Portal
-                </p>
-                <p className="text-gray-300 text-xs" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  © 2026 Tous droits réservés
-                </p>
+            {/* Security */}
+            <div style={styles.securityStrip}>
+              <div style={styles.sslBadge}>
+                <div style={styles.sslDot} />
+                <span style={styles.sslText}>CONNEXION SSL SÉCURISÉE</span>
               </div>
             </div>
+
+            <p style={styles.copyright}>
+              NEXUS BTP Consulting · © 2026 Tous droits réservés
+            </p>
           </div>
 
-          {/* Bottom accent line */}
-          <div className="absolute bottom-0 left-0 right-0 h-2 bg-black"></div>
+          {/* Bottom accent bar */}
+          <div style={styles.bottomBar} />
         </div>
       </div>
 
-      {/* Animated CSS */}
-      <style jsx>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-10px); }
-          75% { transform: translateX(10px); }
+      <style>{`
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
-        @keyframes float {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(20px, -20px); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(-20px, 20px); }
-        }
-        @keyframes pulse-slow {
+        @keyframes sslBlink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-        .animate-float {
-          animation: float 20s ease-in-out infinite;
-        }
-        .animate-float-delayed {
-          animation: float-delayed 25s ease-in-out infinite;
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 4s ease-in-out infinite;
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 3s ease-in-out infinite;
+        .nexus-submit:hover:not(:disabled) {
+          background: #00276a !important;
         }
       `}</style>
     </div>
   );
+};
+
+/* ─────────────── Styles ─────────────── */
+const NAVY = '#003893';
+const ORANGE = '#EA580C';
+
+const styles = {
+  page: {
+    height: '100vh',
+    maxHeight: '100vh',
+    background: '#f0f4f8',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '1rem',
+    position: 'relative',
+    overflow: 'hidden',
+    fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
+  },
+  bgDots: {
+    position: 'fixed',
+    inset: 0,
+    backgroundImage: 'radial-gradient(circle, rgba(0,56,147,0.11) 1px, transparent 1px)',
+    backgroundSize: '32px 32px',
+    pointerEvents: 'none',
+  },
+  bgShape1: {
+    position: 'fixed',
+    width: 520,
+    height: 520,
+    borderRadius: '50%',
+    background: 'rgba(0,56,147,0.06)',
+    top: -140,
+    right: -100,
+    pointerEvents: 'none',
+  },
+  bgShape2: {
+    position: 'fixed',
+    width: 420,
+    height: 420,
+    borderRadius: '50%',
+    background: 'rgba(234,88,12,0.05)',
+    bottom: -100,
+    left: -80,
+    pointerEvents: 'none',
+  },
+  bgShapeTriangle: {
+    position: 'fixed',
+    width: 0,
+    height: 0,
+    borderLeft: '200px solid transparent',
+    borderRight: '200px solid transparent',
+    borderBottom: `350px solid rgba(0,56,147,0.03)`,
+    top: '30%',
+    left: '5%',
+    pointerEvents: 'none',
+  },
+  cardWrapper: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: 460,
+    zIndex: 2,
+    animation: 'fadeInUp 0.5s cubic-bezier(0.22,1,0.36,1) both',
+  },
+  card: {
+    background: '#fff',
+    borderRadius: 20,
+    border: '1.5px solid #e2e8f0',
+    overflow: 'hidden',
+    boxShadow: '0 4px 32px rgba(0,56,147,0.10), 0 1px 4px rgba(0,0,0,0.06)',
+  },
+  topBar: {
+    height: 5,
+    background: `linear-gradient(90deg, ${NAVY} 0%, ${NAVY} 60%, ${ORANGE} 100%)`,
+  },
+  bottomBar: {
+    height: 5,
+    background: `linear-gradient(90deg, ${ORANGE} 0%, ${NAVY} 100%)`,
+  },
+  cardBody: {
+    padding: '1.1rem 1.75rem 1rem',
+  },
+
+  /* Header */
+  header: { textAlign: 'center', marginBottom: '1rem' },
+  logoArea: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: '0.5rem',
+  },
+  logoBox: {
+    width: 52,
+    height: 52,
+    background: '#fff',
+    borderRadius: 12,
+    border: '1.5px solid #e2e8f0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  logoImg: { width: 42, height: 42, objectFit: 'contain' },
+  logoTextCol: { textAlign: 'left' },
+  brandName: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: NAVY,
+    letterSpacing: '0.04em',
+    lineHeight: 1,
+  },
+  brandNameOrange: { color: ORANGE },
+  brandSub: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#64748b',
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  dividerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: '0.35rem',
+  },
+  dividerLine: { flex: 1, maxWidth: 60, height: 1, background: '#e2e8f0' },
+  dividerDot: { width: 6, height: 6, background: ORANGE, borderRadius: '50%' },
+  headerTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1e293b',
+    marginTop: '0.35rem',
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    letterSpacing: '0.06em',
+  },
+
+  /* Error */
+  errorBox: {
+    background: '#fff5f5',
+    border: `1.5px solid ${ORANGE}`,
+    borderRadius: 12,
+    padding: '12px 14px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: '1.25rem',
+  },
+  errorIcon: {
+    width: 22,
+    height: 22,
+    flexShrink: 0,
+    background: ORANGE,
+    borderRadius: 6,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#fff',
+  },
+  errorTitle: { fontSize: 12, fontWeight: 700, color: '#c2410c', marginBottom: 2 },
+  errorText: { fontSize: 12, color: '#c2410c', lineHeight: 1.5 },
+
+  /* Fields */
+  fieldGroup: { marginBottom: '0.6rem' },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: NAVY,
+    textTransform: 'uppercase',
+    letterSpacing: '0.14em',
+    marginBottom: 8,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  labelDot: { width: 5, height: 5, background: ORANGE, borderRadius: '50%', display: 'inline-block' },
+  inputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#f8fafc',
+    border: '1.5px solid #e2e8f0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
+  },
+  inputRowFocused: {
+    borderColor: NAVY,
+    background: '#fff',
+    boxShadow: `0 0 0 3px rgba(0,56,147,0.08)`,
+  },
+  inputIcon: {
+    width: 44,
+    height: 46,
+    flexShrink: 0,
+    background: NAVY,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldInput: {
+    flex: 1,
+    padding: '0 12px',
+    height: 46,
+    border: 'none',
+    outline: 'none',
+    background: 'transparent',
+    fontSize: 14,
+    color: '#1e293b',
+    fontFamily: 'inherit',
+  },
+  toggleBtn: {
+    width: 40,
+    height: 46,
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#94a3b8',
+    transition: 'color 0.2s',
+    padding: 0,
+  },
+
+  /* Remember / Forgot */
+  formFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    margin: '0.4rem 0 0.75rem',
+  },
+  rememberLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    cursor: 'pointer',
+    userSelect: 'none',
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    border: '1.5px solid #cbd5e1',
+    borderRadius: 5,
+    background: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s, border-color 0.2s',
+    flexShrink: 0,
+  },
+  checkboxChecked: { background: NAVY, borderColor: NAVY },
+  rememberText: { fontSize: 13, color: '#475569' },
+  forgotLink: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: ORANGE,
+    textDecoration: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    transition: 'gap 0.2s',
+  },
+
+  /* Submit button */
+  submitBtn: {
+    width: '100%',
+    height: 48,
+    background: NAVY,
+    color: '#fff',
+    border: 'none',
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    transition: 'background 0.2s, transform 0.1s',
+    position: 'relative',
+    overflow: 'hidden',
+    fontFamily: 'inherit',
+  },
+  submitBtnDisabled: {
+    background: '#94a3b8',
+    cursor: 'not-allowed',
+  },
+  btnAccent: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    background: ORANGE,
+  },
+  spinner: {
+    width: 20,
+    height: 20,
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderTopColor: '#fff',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite',
+  },
+
+  /* Security */
+  securityStrip: {
+    marginTop: '0.75rem',
+    paddingTop: '0.65rem',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sslBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#f0fdf4',
+    border: '1px solid #86efac',
+    borderRadius: 20,
+    padding: '5px 14px',
+  },
+  sslDot: {
+    width: 7,
+    height: 7,
+    background: '#16a34a',
+    borderRadius: '50%',
+    animation: 'sslBlink 2s ease-in-out infinite',
+  },
+  sslText: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#15803d',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  copyright: {
+    textAlign: 'center',
+    marginTop: '0.4rem',
+    fontSize: 11,
+    color: '#94a3b8',
+  },
 };
 
 export default Login;
