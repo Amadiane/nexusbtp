@@ -3,478 +3,371 @@ import { Users, AlertCircle, Linkedin, Mail, ArrowRight, Crown } from "lucide-re
 import { useTranslation } from "react-i18next";
 import CONFIG from "../../config/config.js";
 
-/**
- * 🏗️ ÉQUIPE BETCOM AI - CHARTE GRAPHIQUE BETCOM
- * Police Poppins partout selon la charte
- * Titre massif comme "Rejoignez notre équipe"
- * Photos en noir & blanc → couleur au survol
- */
+const NAVY   = "#003893";
+const ORANGE = "#EA580C";
 
-const LoadingSpinner = ({ t }) => (
-  <div className="flex flex-col justify-center items-center py-40">
-    <div className="w-16 h-16 border-2 border-gray-200 border-t-black rounded-full animate-spin"></div>
-    <span 
-      className="text-sm text-gray-400 mt-6 tracking-widest uppercase"
-      style={{ fontFamily: "'Poppins', sans-serif" }}
-    >
-      {t('team.loading')}
-    </span>
-  </div>
-);
+const normalizeUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${CONFIG.BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+};
 
 const NotreEquipe = () => {
   const { t } = useTranslation();
-  const [membres, setMembres] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [membres, setMembres]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
 
   useEffect(() => {
-    const normalizeUrl = (url) => {
-      if (!url) return null;
-      if (url.startsWith("http")) return url;
-      if (url.startsWith("/")) return `${CONFIG.BASE_URL}${url}`;
-      return `${CONFIG.BASE_URL}/${url}`;
-    };
-
-    const fetchEquipe = async () => {
+    const fetch_ = async () => {
       try {
-        setError(null);
-        const res = await fetch(CONFIG.API_TEAM_LIST);
-        if (!res.ok) throw new Error(`Erreur ${res.status}`);
-        
-        const data = await res.json();
-        const teamData = Array.isArray(data) ? data : data.results || [];
-        const activeMembres = teamData.filter(m => m.is_active === true);
-        
-        const normalized = activeMembres.map((m) => ({
-          ...m,
-          photo_url: normalizeUrl(m.photo_url || m.photo),
-          cover_image: normalizeUrl(m.cover_image),
-        }));
-        
-        const sorted = normalized.sort((a, b) => {
-          if (a.created_at && b.created_at) return new Date(a.created_at) - new Date(b.created_at);
-          return a.id - b.id;
+        const token = localStorage.getItem("access");
+        const res   = await fetch(CONFIG.API_TEAM_LIST, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        
-        setMembres(sorted);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+        if (!res.ok) throw new Error(`Erreur ${res.status}`);
+        const data   = await res.json();
+        const list   = Array.isArray(data) ? data : (data.results ?? []);
+        const active = list
+          .filter(m => m.is_active === true)
+          .map(m => ({ ...m, photo_url: normalizeUrl(m.photo_url || m.photo) }))
+          .sort((a, b) => (a.created_at && b.created_at)
+            ? new Date(a.created_at) - new Date(b.created_at)
+            : a.id - b.id);
+        setMembres(active);
+      } catch (err) { setError(err.message); }
+      finally { setLoading(false); }
     };
-    fetchEquipe();
+    fetch_();
   }, []);
 
   const dirigeants = membres.filter(m => m.role === "dirigeant" || m.is_leader === true);
-  const employes = membres.filter(m => m.role !== "dirigeant" && !m.is_leader);
+  const employes   = membres.filter(m => m.role !== "dirigeant" && !m.is_leader);
 
+  /* ─── Loading ─────────────────────────────────────── */
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 44, height: 44, border: `2px solid #f0f0f0`, borderTopColor: NAVY, borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 14px" }} />
+        <p style={{ fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: "#bbb", fontFamily: "sans-serif" }}>
+          {t("team.loading", "Chargement")}
+        </p>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  /* ─── Error ─────────────────────────────────────── */
+  if (error) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "#fff" }}>
+      <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <AlertCircle size={44} color="#ef4444" style={{ margin: "0 auto 16px" }} />
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t("team.error.title", "Erreur")}</h3>
+        <p style={{ color: "#777", marginBottom: 24, fontSize: 14 }}>{error}</p>
+        <button onClick={() => window.location.reload()} style={{ padding: "11px 28px", background: NAVY, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+          {t("team.error.retry", "Réessayer")}
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ─── Render ─────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-white">
-      
-      {/* Cover Image - Full Width en haut */}
-      {membres.length > 0 && membres[0]?.cover_image && (
-        <div className="relative w-full h-[60vh] md:h-[70vh] bg-black">
-          <img
-            src={membres[0].cover_image}
-            alt="Team Cover"
-            className="w-full h-full object-cover opacity-90"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60"></div>
+    <div style={{ background: "#fff", minHeight: "100vh", fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
+      <style>{`
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+
+        /* grayscale → color on hover */
+        .tc-photo { filter: grayscale(100%); transition: filter .6s ease, transform .6s ease; }
+        .tc-card:hover .tc-photo { filter: grayscale(0%); transform: scale(1.05); }
+
+        /* stripe reveal */
+        .tc-stripe { transform: scaleX(0); transform-origin: left; transition: transform .4s ease; }
+        .tc-card:hover .tc-stripe { transform: scaleX(1); }
+
+        /* social overlay */
+        .tc-overlay { opacity: 0; transition: opacity .35s; pointer-events: none; }
+        .tc-card:hover .tc-overlay { opacity: 1; pointer-events: auto; }
+
+        /* gradient overlay fade */
+        .tc-grad { transition: opacity .5s; }
+        .tc-card:hover .tc-grad { opacity: 0 !important; }
+
+        /* badge fade */
+        .tc-badge { transition: opacity .35s; }
+        .tc-card:hover .tc-badge { opacity: 0; }
+
+        /* underline on name */
+        .tc-name { transition: text-decoration .2s; }
+        .tc-card:hover .tc-name { text-decoration: underline; text-underline-offset: 4px; }
+
+        /* social btn hover */
+        .tc-social-btn:hover { background: #fff !important; color: #000 !important; }
+
+        /* employee quick action */
+        .tc-qa { opacity:0; transform:translateY(10px); transition: opacity .3s, transform .3s; pointer-events:none; }
+        .tc-card:hover .tc-qa { opacity:1; transform:translateY(0); pointer-events:auto; }
+
+        @media (max-width: 768px) {
+          .team-hero-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+          .team-dir-grid  { grid-template-columns: 1fr !important; }
+          .team-emp-grid  { grid-template-columns: repeat(2, 1fr) !important; }
+          .team-hero      { padding: 48px 24px 40px !important; }
+          .team-section   { padding: 40px 24px 64px !important; }
+          .team-cta       { padding: 56px 24px !important; }
+        }
+        @media (max-width: 480px) {
+          .team-emp-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
+      {/* ══ HERO ══════════════════════════════════════════ */}
+      <section className="team-hero" style={{ padding: "80px 48px 64px", maxWidth: 1600, margin: "0 auto" }}>
+
+        {/* Top line */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 48 }}>
+          <div style={{ width: 36, height: 2, background: ORANGE }} />
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.24em", textTransform: "uppercase", color: ORANGE }}>
+            {t("team.sectionLabel", "Notre équipe")}
+          </span>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981" }} />
+            <span style={{ fontSize: 10, color: "#bbb", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+              {membres.length} {t("team.stats.members", "membres")}
+            </span>
+          </div>
         </div>
-      )}
-      
-      {/* Hero Section - Présentation comme la capture */}
-      <section className="relative pt-20 pb-16 px-6 lg:px-16">
-        <div className="max-w-[1600px] mx-auto">
-          
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
-            {/* Colonne Gauche - Titre */}
-            <div>
-              <h1 
-                className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight tracking-tight text-black mb-0"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.title') || 'Une équipe, une culture, l\'excellence'}
-              </h1>
-            </div>
 
-            {/* Colonne Droite - Description */}
-            <div className="space-y-6">
-              <p 
-                className="text-lg md:text-xl text-gray-700 leading-relaxed"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.subtitle') || 'Portés par la passion du détail et l\'ambition d\'innover, nous plaçons l\'humain et le contexte au cœur de chaque conception.'}
-              </p>
-              <p 
-                className="text-lg md:text-xl text-gray-700 leading-relaxed"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                <strong>Bâtir des espaces qui inspirent, résistent et racontent une histoire.</strong>
-              </p>
+        <div className="team-hero-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "flex-start" }}>
 
-              {/* Stats Line */}
-              <div className="flex flex-wrap items-center gap-6 md:gap-10 pt-8 text-sm">
-                <div>
-                  <span 
-                    className="text-black font-bold text-2xl md:text-3xl block"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {membres.length}
-                  </span>
-                  <span 
-                    className="text-gray-500 uppercase tracking-wider text-xs"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {t('team.stats.members') || 'Membres'}
-                  </span>
-                </div>
-                <div className="w-px h-12 bg-gray-300"></div>
-                <div>
-                  <span 
-                    className="text-black font-bold text-2xl md:text-3xl block"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {dirigeants.length}
-                  </span>
-                  <span 
-                    className="text-gray-500 uppercase tracking-wider text-xs"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {t('team.stats.leaders') || 'Dirigeants'}
-                  </span>
-                </div>
-                <div className="w-px h-12 bg-gray-300"></div>
-                <div>
-                  <span 
-                    className="text-black font-bold text-2xl md:text-3xl block"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {employes.length}
-                  </span>
-                  <span 
-                    className="text-gray-500 uppercase tracking-wider text-xs"
-                    style={{ fontFamily: "'Poppins', sans-serif" }}
-                  >
-                    {t('team.stats.experts') || 'Experts'}
-                  </span>
-                </div>
-              </div>
+          {/* Left — big title */}
+          <div>
+            <h1 style={{
+              fontSize: "clamp(44px, 7vw, 88px)",
+              fontWeight: 900,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.0,
+              margin: 0,
+              fontFamily: "'Creato Display','DM Sans',sans-serif",
+            }}>
+              <span style={{ color: "#0a0a0a" }}>{t("team.titleLine1", "Une équipe,")}</span>
+              <br />
+              <span style={{ color: NAVY }}>{t("team.titleLine2", "une culture,")}</span>
+              <br />
+              <span style={{ color: ORANGE }}>{t("team.titleLine3", "l'excellence")}</span>
+            </h1>
+          </div>
+
+          {/* Right — desc + stats */}
+          <div style={{ paddingTop: 8 }}>
+            <p style={{ fontSize: 16, color: "#666", lineHeight: 1.85, fontWeight: 300, marginBottom: 14 }}>
+              {t("team.subtitle", "Portés par la passion du détail et l'ambition d'innover, nous plaçons l'humain au cœur de chaque conception.")}
+            </p>
+            <p style={{ fontSize: 15, color: "#333", lineHeight: 1.7, fontWeight: 600, marginBottom: 40 }}>
+              {t("team.subtitle2", "Bâtir des espaces qui inspirent, résistent et racontent une histoire.")}
+            </p>
+
+            {/* Stats */}
+            <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+              {[
+                { val: membres.length,    label: t("team.stats.members",  "Membres") },
+                { val: dirigeants.length, label: t("team.stats.leaders",  "Dirigeants") },
+                { val: employes.length,   label: t("team.stats.experts",  "Experts") },
+              ].map((s, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <div style={{ width: 1, height: 36, background: "#e8e8e8" }} />}
+                  <div>
+                    <div style={{ fontSize: 30, fontWeight: 900, color: NAVY, lineHeight: 1, letterSpacing: "-0.02em" }}>{s.val}</div>
+                    <div style={{ fontSize: 9, color: "#aaa", letterSpacing: "0.16em", textTransform: "uppercase", marginTop: 5 }}>{s.label}</div>
+                  </div>
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Team Grid Section */}
-      <section className="relative py-20 px-6 lg:px-16">
-        <div className="max-w-[1800px] mx-auto">
+      {/* Divider */}
+      <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #e8e8e8 20%, #e8e8e8 80%, transparent)", maxWidth: 1600, margin: "0 auto" }} />
 
-          {loading && <LoadingSpinner t={t} />}
+      {/* ══ TEAM SECTION ══════════════════════════════════ */}
+      <section className="team-section" style={{ padding: "64px 48px 80px", maxWidth: 1800, margin: "0 auto" }}>
 
-          {error && !loading && (
-            <div className="max-w-2xl mx-auto p-12 border border-red-200 rounded-2xl text-center bg-red-50">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h3 
-                className="text-xl font-bold mb-2"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.error.title')}
-              </h3>
-              <p 
-                className="text-gray-600 mb-6"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {error}
-              </p>
-              <button 
-                onClick={() => window.location.reload()} 
-                className="px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.error.retry')}
-              </button>
+        {membres.length === 0 && !loading && (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <Users size={44} color="#e0e0e0" style={{ margin: "0 auto 16px" }} />
+            <p style={{ color: "#bbb", fontSize: 15 }}>{t("team.noMembers.title", "Aucun membre pour le moment")}</p>
+          </div>
+        )}
+
+        {/* ── DIRIGEANTS ─────────────────────────────────── */}
+        {dirigeants.length > 0 && (
+          <div style={{ marginBottom: 80 }}>
+            {/* Section label */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 48 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <Crown size={20} color={ORANGE} />
+                  <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900, letterSpacing: "-0.02em", color: "#0a0a0a", margin: 0, fontFamily: "'Creato Display',sans-serif" }}>
+                    {t("team.leadership.title", "Leadership")}
+                  </h2>
+                </div>
+                <div style={{ width: 48, height: 3, background: `linear-gradient(90deg,${NAVY},${ORANGE})`, borderRadius: 2 }} />
+              </div>
             </div>
-          )}
 
-          {!loading && !error && membres.length === 0 && (
-            <div className="max-w-2xl mx-auto p-12 border border-gray-200 rounded-2xl text-center">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 
-                className="text-xl font-bold mb-2"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.noMembers.title')}
-              </h3>
-              <p 
-                className="text-gray-500"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.noMembers.subtitle')}
-              </p>
-            </div>
-          )}
+            <div className="team-dir-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 40 }}>
+              {dirigeants.map((m, i) => (
+                <article key={m.id} className="tc-card"
+                  onMouseEnter={() => setHoveredId(m.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  style={{ cursor: "default", animation: `fadeUp .7s ease ${i * .1}s both` }}>
 
-          {!loading && !error && membres.length > 0 && (
-            <>
-              {/* DIRIGEANTS */}
-              {dirigeants.length > 0 && (
-                <div className="mb-32">
-                  <div className="mb-16">
-                    <div className="flex items-center gap-4 mb-4">
-                      <h2 
-                        className="text-5xl md:text-6xl font-bold text-black tracking-tight"
-                        style={{ fontFamily: "'Poppins', sans-serif" }}
-                      >
-                        {t('team.leadership.title')}
-                      </h2>
-                      <Crown className="w-10 h-10 text-black" />
+                  {/* Photo */}
+                  <div style={{ position: "relative", aspectRatio: "3/4", overflow: "hidden", background: "#f5f5f5", marginBottom: 20 }}>
+                    <img className="tc-photo"
+                      src={m.photo_url || `https://placehold.co/600x800/f0f4f8/${NAVY.replace("#","")}?text=${encodeURIComponent(m.full_name?.[0]||"N")}`}
+                      alt={m.full_name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={e => e.target.src = `https://placehold.co/600x800/f0f4f8/003893?text=Photo`}
+                    />
+
+                    {/* Gradient */}
+                    <div className="tc-grad" style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,.22), transparent)", opacity: 1 }} />
+
+                    {/* Leader badge */}
+                    <div className="tc-badge" style={{ position: "absolute", top: 14, left: 14, background: NAVY, color: "#fff", fontSize: 9, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 12px", borderRadius: 20, display: "flex", alignItems: "center", gap: 5 }}>
+                      <Crown size={9} /> {t("team.leadership.badge", "Leadership")}
                     </div>
-                    <div className="w-24 h-1 bg-black"></div>
+
+                    {/* Social overlay */}
+                    <div className="tc-overlay" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.80)", display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                      {m.linkedin && (
+                        <a href={m.linkedin} target="_blank" rel="noopener noreferrer" className="tc-social-btn"
+                          style={{ width: 50, height: 50, borderRadius: "50%", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", transition: "all .2s" }}>
+                          <Linkedin size={20} />
+                        </a>
+                      )}
+                      {m.email && (
+                        <a href={`mailto:${m.email}`} className="tc-social-btn"
+                          style={{ width: 50, height: 50, borderRadius: "50%", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", transition: "all .2s" }}>
+                          <Mail size={20} />
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Bottom stripe */}
+                    <div className="tc-stripe" style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${NAVY},${ORANGE})` }} />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
-                    {dirigeants.map((membre, i) => (
-                      <article
-                        key={membre.id}
-                        onMouseEnter={() => setHoveredId(membre.id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        className="group relative cursor-pointer"
-                        style={{ animation: `fadeIn 0.8s ease-out ${i * 0.1}s both` }}
-                      >
-                        {/* Photo Container */}
-                        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 mb-6">
-                          <img
-                            src={membre.photo_url || "https://placehold.co/800x1000/f5f5f5/000000?text=Photo"}
-                            alt={membre.full_name}
-                            style={{
-                              filter: hoveredId === membre.id ? 'grayscale(0%)' : 'grayscale(100%)',
-                              transform: hoveredId === membre.id ? 'scale(1.05)' : 'scale(1)',
-                              transition: 'all 0.7s ease'
-                            }}
-                            className="w-full h-full object-cover"
-                            onError={(e) => e.target.src = "https://placehold.co/800x1000/f5f5f5/000000?text=Photo"}
-                          />
-                          
-                          {/* Overlay progressif */}
-                          <div className={`absolute inset-0 bg-gradient-to-t from-black/20 to-transparent transition-opacity duration-700 ${
-                            hoveredId === membre.id ? 'opacity-0' : 'opacity-100'
-                          }`}></div>
+                  {/* Info */}
+                  <h3 className="tc-name" style={{ fontSize: 20, fontWeight: 800, color: "#0a0a0a", marginBottom: 4, letterSpacing: "-0.01em", fontFamily: "'Creato Display',sans-serif" }}>
+                    {m.full_name}
+                  </h3>
+                  <p style={{ fontSize: 13, color: NAVY, fontWeight: 600, marginBottom: 8 }}>{m.position_fr}</p>
+                  {m.bio_fr && (
+                    <p style={{ fontSize: 13, color: "#999", lineHeight: 1.7, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {m.bio_fr}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
 
-                          {/* Badge Leader */}
-                          <div className={`absolute top-4 right-4 transition-all duration-500 ${
-                            hoveredId === membre.id ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-                          }`}>
-                            <div className="px-3 py-1.5 bg-black/80 backdrop-blur-sm rounded-full flex items-center gap-2">
-                              <Crown className="w-4 h-4 text-white" />
-                              <span 
-                                className="text-xs font-bold text-white uppercase tracking-wider"
-                                style={{ fontFamily: "'Poppins', sans-serif" }}
-                              >
-                                {t('team.leadership.badge')}
-                              </span>
-                            </div>
-                          </div>
+        {/* ── EMPLOYÉS ────────────────────────────────────── */}
+        {employes.length > 0 && (
+          <div>
+            <div style={{ marginBottom: 40 }}>
+              <h2 style={{ fontSize: "clamp(24px, 3.5vw, 44px)", fontWeight: 900, letterSpacing: "-0.02em", color: "#0a0a0a", marginBottom: 10, fontFamily: "'Creato Display',sans-serif" }}>
+                {t("team.members.title", "Notre équipe")}
+              </h2>
+              <div style={{ width: 48, height: 3, background: `linear-gradient(90deg,${NAVY},${ORANGE})`, borderRadius: 2 }} />
+            </div>
 
-                          {/* Social Links Overlay */}
-                          <div className={`absolute inset-0 bg-black/80 flex items-center justify-center gap-4 transition-all duration-500 ${
-                            hoveredId === membre.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                          }`}>
-                            {membre.linkedin && (
-                              <a
-                                href={membre.linkedin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all transform hover:scale-110"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Linkedin className="w-6 h-6" />
-                              </a>
-                            )}
-                            {membre.email && (
-                              <a
-                                href={`mailto:${membre.email}`}
-                                className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all transform hover:scale-110"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Mail className="w-6 h-6" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
+            <div className="team-emp-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 24 }}>
+              {employes.map((m, i) => (
+                <article key={m.id} className="tc-card"
+                  onMouseEnter={() => setHoveredId(m.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  style={{ cursor: "default", animation: `fadeUp .55s ease ${i * .05}s both` }}>
 
-                        {/* Info */}
-                        <div>
-                          <h3 
-                            className="text-2xl md:text-3xl font-bold text-black mb-2 tracking-tight group-hover:underline underline-offset-4 transition-all"
-                            style={{ fontFamily: "'Poppins', sans-serif" }}
-                          >
-                            {membre.full_name}
-                          </h3>
-                          <p 
-                            className="text-base md:text-lg text-gray-600 font-medium mb-4"
-                            style={{ fontFamily: "'Poppins', sans-serif" }}
-                          >
-                            {membre.position_fr || t('team.leadership.defaultPosition')}
-                          </p>
-                          {membre.bio_fr && (
-                            <p 
-                              className="text-sm md:text-base text-gray-500 leading-relaxed line-clamp-3"
-                              style={{ fontFamily: "'Poppins', sans-serif" }}
-                            >
-                              {membre.bio_fr}
-                            </p>
-                          )}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              )}
+                  <div style={{ position: "relative", aspectRatio: "3/4", overflow: "hidden", background: "#f5f5f5", marginBottom: 12 }}>
+                    <img className="tc-photo"
+                      src={m.photo_url || `https://placehold.co/400x533/f0f4f8/003893?text=Photo`}
+                      alt={m.full_name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={e => e.target.src = `https://placehold.co/400x533/f0f4f8/003893?text=Photo`}
+                    />
+                    <div className="tc-grad" style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,.18), transparent)", opacity: 1 }} />
 
-              {/* EMPLOYÉS */}
-              {employes.length > 0 && (
-                <div>
-                  <div className="mb-16">
-                    <h2 
-                      className="text-5xl md:text-6xl font-bold text-black mb-4 tracking-tight"
-                      style={{ fontFamily: "'Poppins', sans-serif" }}
-                    >
-                      {t('team.members.title')}
-                    </h2>
-                    <div className="w-24 h-1 bg-black"></div>
+                    {/* Quick actions */}
+                    <div className="tc-qa" style={{ position: "absolute", bottom: 10, left: 10, right: 10, display: "flex", gap: 6 }}>
+                      {m.linkedin && (
+                        <a href={m.linkedin} target="_blank" rel="noopener noreferrer"
+                          style={{ flex: 1, padding: "7px 0", background: "rgba(255,255,255,.92)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", color: "#000" }}>
+                          <Linkedin size={14} />
+                        </a>
+                      )}
+                      {m.email && (
+                        <a href={`mailto:${m.email}`}
+                          style={{ width: 34, background: "rgba(255,255,255,.92)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", color: "#000" }}>
+                          <Mail size={13} />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="tc-stripe" style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${NAVY},${ORANGE})` }} />
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
-                    {employes.map((membre, i) => (
-                      <article
-                        key={membre.id}
-                        onMouseEnter={() => setHoveredId(membre.id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        className="group relative cursor-pointer"
-                        style={{ animation: `fadeIn 0.6s ease-out ${i * 0.05}s both` }}
-                      >
-                        {/* Photo Container */}
-                        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 mb-4">
-                          <img
-                            src={membre.photo_url || "https://placehold.co/600x800/f5f5f5/666666?text=Photo"}
-                            alt={membre.full_name}
-                            style={{
-                              filter: hoveredId === membre.id ? 'grayscale(0%)' : 'grayscale(100%)',
-                              transform: hoveredId === membre.id ? 'scale(1.1)' : 'scale(1)',
-                              transition: 'all 0.7s ease'
-                            }}
-                            className="w-full h-full object-cover"
-                            onError={(e) => e.target.src = "https://placehold.co/600x800/f5f5f5/666666?text=Photo"}
-                          />
-                          
-                          {/* Overlay */}
-                          <div className={`absolute inset-0 bg-gradient-to-t from-black/20 to-transparent transition-opacity duration-700 ${
-                            hoveredId === membre.id ? 'opacity-0' : 'opacity-100'
-                          }`}></div>
-
-                          {/* Quick Actions */}
-                          <div className={`absolute bottom-4 left-4 right-4 flex gap-2 transition-all duration-500 ${
-                            hoveredId === membre.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-                          }`}>
-                            {membre.linkedin && (
-                              <a
-                                href={membre.linkedin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 py-2 rounded-lg bg-white/90 backdrop-blur-sm flex items-center justify-center gap-2 hover:bg-black hover:text-white transition-all text-sm font-semibold transform hover:scale-105"
-                                onClick={(e) => e.stopPropagation()}
-                                style={{ fontFamily: "'Poppins', sans-serif" }}
-                              >
-                                <Linkedin className="w-4 h-4" />
-                              </a>
-                            )}
-                            {membre.email && (
-                              <a
-                                href={`mailto:${membre.email}`}
-                                className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-black hover:text-white transition-all transform hover:scale-105"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Mail className="w-4 h-4" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Info */}
-                        <div>
-                          <h4 
-                            className="text-base md:text-lg font-bold text-black mb-1 truncate group-hover:underline underline-offset-2 transition-all"
-                            style={{ fontFamily: "'Poppins', sans-serif" }}
-                          >
-                            {membre.full_name}
-                          </h4>
-                          <p 
-                            className="text-sm text-gray-600 truncate"
-                            style={{ fontFamily: "'Poppins', sans-serif" }}
-                          >
-                            {membre.position_fr || t('team.members.defaultPosition')}
-                          </p>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                  <h4 className="tc-name" style={{ fontSize: 14, fontWeight: 800, color: "#0a0a0a", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Creato Display',sans-serif" }}>
+                    {m.full_name}
+                  </h4>
+                  <p style={{ fontSize: 12, color: NAVY, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {m.position_fr || t("team.members.defaultPosition", "Consultant")}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* CTA Section */}
+      {/* ══ CTA ══════════════════════════════════════════ */}
       {!loading && !error && membres.length > 0 && (
-        <section className="relative py-32 px-6 lg:px-16 border-t border-black bg-gray-50">
-          <div className="max-w-[1800px] mx-auto">
-            <div className="max-w-4xl">
-              <h2 
-                className="text-5xl md:text-7xl font-bold text-black mb-8 tracking-tight leading-tight"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.cta.title')}
+        <section className="team-cta" style={{ padding: "64px 48px", borderTop: "1px solid #f0f0f0", background: "#fafafa" }}>
+          <div style={{ maxWidth: 1600, margin: "0 auto" }}>
+            <div style={{ maxWidth: 600 }}>
+              {/* Eyebrow */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                <div style={{ width: 24, height: 2, background: ORANGE }} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: ORANGE }}>
+                  {t("team.cta.eyebrow", "Carrières")}
+                </span>
+              </div>
+
+              <h2 style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 900, color: "#0a0a0a", marginBottom: 16, letterSpacing: "-0.02em", fontFamily: "'Creato Display',sans-serif" }}>
+                {t("team.cta.title", "Rejoignez notre équipe")}
               </h2>
-              <p 
-                className="text-xl md:text-2xl text-gray-600 mb-12 font-light max-w-2xl leading-relaxed"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.cta.description')}
+              <p style={{ fontSize: 16, color: "#777", lineHeight: 1.75, fontWeight: 300, marginBottom: 32 }}>
+                {t("team.cta.description", "Vous souhaitez contribuer à des projets ambitieux ? Découvrez nos opportunités.")}
               </p>
-              <a
-                href="/services"
-                className="group inline-flex items-center gap-4 text-xl font-bold text-black hover:gap-6 transition-all duration-300"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                {t('team.cta.button')}
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+              <a href="/contacternous"
+                style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "13px 28px", background: NAVY, color: "#fff", borderRadius: 12, fontWeight: 700, fontSize: 14, textDecoration: "none", transition: "all .2s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#001f5c"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = NAVY; e.currentTarget.style.transform = "translateY(0)"; }}>
+                {t("team.cta.button", "Voir nos services")}
+                <ArrowRight size={17} />
               </a>
             </div>
           </div>
         </section>
       )}
-
-      {/* Animations */}
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 };
