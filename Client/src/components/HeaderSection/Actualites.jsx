@@ -129,7 +129,7 @@ const Actualites = () => {
           fontFamily: "'Creato Display', 'DM Sans', sans-serif",
         }}>
           {t("news.title", "Actua")}
-          {/* <span style={{ color: NAVY }}>lités</span> */}
+          <span style={{ color: NAVY }}>LITES</span>
           <span style={{ color: ORANGE, fontSize: "0.35em", fontWeight: 400, letterSpacing: "0.1em", verticalAlign: "super", marginLeft: 8 }}>
             NEXUS BTP
           </span>

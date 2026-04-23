@@ -2,816 +2,446 @@ import { useEffect, useState } from "react";
 import CONFIG from "../../config/config.js";
 import {
   Handshake, Loader2, Trash2, PlusCircle, Edit2, X, Save,
-  RefreshCw, Eye, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Check, Calendar, Sparkles, Archive, Clock, Globe
+  RefreshCw, Image as ImageIcon, Check, Globe, ArrowLeft, ExternalLink
 } from "lucide-react";
 
-/**
- * 🎨 PARTNERS V4 - UNIFORM GRID + FLOATING BAR
- * Style: Same as ServicePost/PortfolioPost
- * Charte: violet #a34ee5, or #fec603, violet foncé #7828a8, noir #0a0a0a
- */
+const NAVY   = "#003893";
+const ORANGE = "#EA580C";
 
 const PartnerPost = () => {
-  const [partners, setPartners] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [partners, setPartners]       = useState([]);
+  const [loading, setLoading]         = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [showList, setShowList] = useState(true);
-  const [editingId, setEditingId] = useState(null);
+  const [error, setError]             = useState(null);
+  const [success, setSuccess]         = useState(null);
+  const [view, setView]               = useState("list"); // "list"|"form"|"detail"
+  const [editingId, setEditingId]     = useState(null);
   const [selectedPartner, setSelectedPartner] = useState(null);
-  const [selectedCards, setSelectedCards] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [preview, setPreview] = useState(null);
-  const [history, setHistory] = useState([]);
-
-  const [formData, setFormData] = useState({
-    name_fr: "",
-    name_en: "",
-    description_fr: "",
-    description_en: "",
-    cover_image: null,
-    website_url: "",
-    is_active: true,
-  });
-
+  const [preview, setPreview]         = useState(null);
+  const [uploadStep, setUploadStep]   = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterStatus, setFilterStatus] = useState("all");
   const itemsPerPage = 12;
 
-  // Constants for NavAdmin spacing
-  const NAVADMIN_HEIGHT = 80;
-  const SCROLL_OFFSET = 20;
+  const [formData, setFormData] = useState({
+    name_fr: "", name_en: "",
+    description_fr: "", description_en: "",
+    website_url: "", is_active: true, cover_image: null,
+  });
 
-  const scrollToForm = () => {
-    setTimeout(() => {
-      window.scrollTo({ 
-        top: NAVADMIN_HEIGHT + SCROLL_OFFSET,
-        behavior: "smooth" 
-      });
-    }, 100);
+  /* ── helpers ── */
+  const authH = () => {
+    const t = localStorage.getItem("access");
+    return { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
   };
+  const getImg = (p) => p.cover_image_url || p.cover_image || null;
 
+  /* ── fetch ── */
   const fetchPartners = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${CONFIG.BASE_URL}/api/partners/`);
+      const token = localStorage.getItem("access");
+      const res = await fetch(`${CONFIG.BASE_URL}/api/partners/`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Erreur " + res.status);
       const data = await res.json();
-      setPartners(data.results || data);
+      setPartners(Array.isArray(data) ? data : (data.results ?? []));
       setError(null);
-    } catch (error) {
-      console.error(error);
-      setError("Erreur lors du chargement des partenaires");
-    } finally {
-      setLoading(false);
-      setFetchLoading(false);
-    }
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); setFetchLoading(false); }
   };
 
-  useEffect(() => {
-    fetchPartners();
-  }, []);
+  useEffect(() => { fetchPartners(); }, []);
 
+  /* ── cloudinary ── */
   const uploadToCloudinary = async (file) => {
-    if (!file) return null;
-    const formDataCloud = new FormData();
-    formDataCloud.append("file", file);
-    formDataCloud.append("upload_preset", CONFIG.CLOUDINARY_UPLOAD_PRESET);
-
-    try {
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY_NAME}/image/upload`,
-        { method: "POST", body: formDataCloud }
-      );
-      const data = await res.json();
-      return data.secure_url;
-    } catch (err) {
-      console.error("Erreur upload Cloudinary:", err);
-      return null;
-    }
+    if (!file || typeof file === "string") return file ?? null;
+    const fd = new FormData();
+    fd.append("file", file); fd.append("upload_preset", CONFIG.CLOUDINARY_UPLOAD_PRESET);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY_NAME}/image/upload`, { method: "POST", body: fd });
+    return (await res.json()).secure_url ?? null;
   };
 
+  /* ── change ── */
   const handleChange = (e) => {
     const { name, value, files, type, checked } = e.target;
     if (files) {
-      setFormData((prev) => ({ ...prev, cover_image: files[0] }));
+      setFormData(p => ({ ...p, cover_image: files[0] }));
       setPreview(URL.createObjectURL(files[0]));
     } else if (type === "checkbox") {
-      setFormData((prev) => ({ ...prev, [name]: checked }));
+      setFormData(p => ({ ...p, [name]: checked }));
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData(p => ({ ...p, [name]: value }));
     }
   };
 
   const resetForm = () => {
-    setFormData({
-      name_fr: "",
-      name_en: "",
-      description_fr: "",
-      description_en: "",
-      cover_image: null,
-      website_url: "",
-      is_active: true,
-    });
-    setPreview(null);
-    setEditingId(null);
+    setFormData({ name_fr: "", name_en: "", description_fr: "", description_en: "", website_url: "", is_active: true, cover_image: null });
+    setPreview(null); setEditingId(null); setSelectedPartner(null);
   };
 
+  /* ── submit ── */
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccessMessage(null);
-
+    e.preventDefault(); setLoading(true); setError(null); setSuccess(null);
     try {
-      let imageUrl = null;
-      if (formData.cover_image && typeof formData.cover_image !== "string") {
-        imageUrl = await uploadToCloudinary(formData.cover_image);
-      } else if (typeof formData.cover_image === "string") {
-        imageUrl = formData.cover_image;
-      }
-
-      const payload = { ...formData, cover_image: imageUrl };
-      const method = editingId ? "PATCH" : "POST";
-      const url = editingId
-        ? `${CONFIG.BASE_URL}/api/partners/${editingId}/`
-        : `${CONFIG.BASE_URL}/api/partners/`;
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Erreur lors de l'enregistrement");
-
-      setSuccessMessage("✨ Succès !");
-      resetForm();
-      await fetchPartners();
-      setShowForm(false);
-      setShowList(true);
-    } catch (err) {
-      console.error(err);
-      setError("Erreur lors de la sauvegarde");
-    } finally {
-      setLoading(false);
-    }
+      setUploadStep("uploading");
+      const imgUrl = await uploadToCloudinary(formData.cover_image);
+      setUploadStep("saving");
+      const payload = { ...formData, cover_image: imgUrl };
+      const method  = editingId ? "PATCH" : "POST";
+      const url     = editingId ? `${CONFIG.BASE_URL}/api/partners/${editingId}/` : `${CONFIG.BASE_URL}/api/partners/`;
+      const res = await fetch(url, { method, headers: authH(), body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error("Erreur enregistrement");
+      setSuccess(editingId ? "Partenaire mis à jour ✓" : "Partenaire créé ✓");
+      resetForm(); await fetchPartners(); setView("list");
+    } catch (err) { setError(err.message); }
+    finally { setUploadStep(""); setLoading(false); }
   };
 
-  const handleEdit = (partner) => {
-    setEditingId(partner.id);
-    setFormData({
-      name_fr: partner.name_fr,
-      name_en: partner.name_en,
-      description_fr: partner.description_fr || "",
-      description_en: partner.description_en || "",
-      website_url: partner.website_url,
-      is_active: partner.is_active,
-      cover_image: partner.cover_image,
-    });
-    setPreview(partner.cover_image_url || partner.cover_image);
-    setShowForm(true);
-    setShowList(false);
-    scrollToForm();
+  /* ── edit ── */
+  const handleEdit = (p) => {
+    setEditingId(p.id); setSelectedPartner(p);
+    setFormData({ name_fr: p.name_fr ?? "", name_en: p.name_en ?? "", description_fr: p.description_fr ?? "", description_en: p.description_en ?? "", website_url: p.website_url ?? "", is_active: p.is_active ?? true, cover_image: p.cover_image ?? null });
+    setPreview(getImg(p)); setView("form");
   };
 
+  /* ── delete ── */
   const handleDelete = async (id) => {
     if (!window.confirm("Supprimer ce partenaire ?")) return;
-
     try {
-      await fetch(`${CONFIG.BASE_URL}/api/partners/${id}/`, { method: "DELETE" });
-      setSuccessMessage("✨ Supprimé !");
+      await fetch(`${CONFIG.BASE_URL}/api/partners/${id}/`, { method: "DELETE", headers: authH() });
+      setSuccess("Partenaire supprimé ✓");
       await fetchPartners();
+      if (view === "detail") setView("list");
       setSelectedPartner(null);
-      setSelectedCards([]);
-    } catch (error) {
-      console.error(error);
-      setError("Erreur lors de la suppression");
-    }
+    } catch (err) { setError(err.message); }
   };
 
-  const toggleCardSelection = (id) => {
-    setSelectedCards(prev => 
-      prev.includes(id) 
-        ? prev.filter(cardId => cardId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedCards.length === 0) return;
-    if (!window.confirm(`Supprimer ${selectedCards.length} partenaire(s) ?`)) return;
-
-    for (const id of selectedCards) {
-      try {
-        await fetch(`${CONFIG.BASE_URL}/api/partners/${id}/`, { method: "DELETE" });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    
-    setSuccessMessage(`✨ ${selectedCards.length} partenaire(s) supprimé(s) !`);
-    setSelectedCards([]);
-    await fetchPartners();
-  };
-
-  const fetchHistory = async (partnerId) => {
-    try {
-      const url = CONFIG.API_PARTNER_HISTORY(partnerId);
-      const res = await fetch(url);
-      
-      if (!res.ok) {
-        setHistory([]);
-        setSelectedPartner(partners.find(p => p.id === partnerId));
-        return;
-      }
-      
-      const data = await res.json();
-      setHistory(Array.isArray(data) ? data : data.results || []);
-      setSelectedPartner(partners.find(p => p.id === partnerId));
-    } catch (error) {
-      console.error(error);
-      setHistory([]);
-      setSelectedPartner(partners.find(p => p.id === partnerId));
-    }
-  };
-
-  // Filtrage
-  const filteredPartners = partners.filter(partner => {
-    if (filterStatus === 'active') return partner.is_active;
-    if (filterStatus === 'inactive') return !partner.is_active;
+  /* ── pagination + filter ── */
+  const filtered = partners.filter(p => {
+    if (filterStatus === "active")   return p.is_active;
+    if (filterStatus === "inactive") return !p.is_active;
     return true;
   });
+  const totalPages   = Math.ceil(filtered.length / itemsPerPage);
+  const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredPartners.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredPartners.length / itemsPerPage);
+  /* ── styles ── */
+  const card = { background: "#fff", borderRadius: 16, border: "1px solid #ebebeb" };
+  const inp  = { width: "100%", padding: "11px 14px", border: "1.5px solid #e5e5e5", borderRadius: 10, fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fafafa" };
+  const lbl  = { fontSize: 10, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888", marginBottom: 6, display: "block" };
+  const btnP = { display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", background: NAVY, color: "#fff", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "inherit" };
+  const btnS = { display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: "#f5f5f5", color: "#555", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit" };
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  if (fetchLoading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-[#a34ee5]/30 border-t-[#fec603] rounded-full animate-spin"></div>
-          <span className="text-gray-400 font-medium">Chargement...</span>
-        </div>
+  if (fetchLoading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <div>
+        <div style={{ width: 40, height: 40, border: `2px solid #f0f0f0`, borderTopColor: NAVY, borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 12px" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] relative pb-32">
-      
-      {/* Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#a34ee5]/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#fec603]/5 rounded-full blur-3xl"></div>
-      </div>
+    <div style={{ fontFamily: "'DM Sans','Segoe UI',sans-serif", minHeight: "100vh" }}>
+      <style>{`
+        .pp-row:hover { background: #f7f9ff !important; }
+        .pp-card:hover { border-color: ${NAVY}40 !important; box-shadow: 0 8px 24px rgba(0,56,147,0.10) !important; transform: translateY(-3px); }
+        .pp-card { transition: all .2s cubic-bezier(.22,1,.36,1); }
+        .btn-p:hover { background: #001f5c !important; }
+        .btn-s:hover { background: #ebebeb !important; }
+        input:focus,textarea:focus,select:focus { border-color: ${NAVY} !important; background:#fff !important; box-shadow:0 0 0 3px ${NAVY}12 !important; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes spin   { to{transform:rotate(360deg)} }
+        .fade-up { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
+        .pp-img { transition: transform .5s ease; }
+        .pp-card:hover .pp-img { transform: scale(1.05); }
+        .pp-overlay { opacity:0; transition: opacity .25s; }
+        .pp-card:hover .pp-overlay { opacity:1; }
+      `}</style>
 
-      <div className="relative max-w-[1800px] mx-auto px-6 py-8">
-        
-        {/* COMPACT HEADER */}
-        <div className="mb-8 flex items-center justify-between gap-4">
-          
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#a34ee5] to-[#7828a8] rounded-2xl flex items-center justify-center shadow-lg">
-              <Handshake className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-white">Partenaires</h1>
-              <p className="text-xs text-gray-500">{filteredPartners.length} partenaire{filteredPartners.length > 1 ? 's' : ''}</p>
-            </div>
+      {/* ── Header ── */}
+      <div style={{ ...card, padding: "18px 24px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {view !== "list" && (
+            <button onClick={() => { resetForm(); setView("list"); }} style={{ ...btnS, padding: "8px 12px" }} className="btn-s"><ArrowLeft size={16} /></button>
+          )}
+          <div style={{ width: 40, height: 40, borderRadius: 11, background: `linear-gradient(135deg, ${NAVY}, #0052cc)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Handshake size={19} color="#fff" />
           </div>
-
-          <div className="flex items-center gap-3">
-            
-            {/* Filter chips */}
-            <div className="hidden md:flex items-center gap-2">
-              <button
-                onClick={() => setFilterStatus('all')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                  filterStatus === 'all'
-                    ? 'bg-[#a34ee5] text-white'
-                    : 'bg-[#41124f]/30 text-gray-400 hover:text-white'
-                }`}
-              >
-                Tous
-              </button>
-              <button
-                onClick={() => setFilterStatus('active')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1 ${
-                  filterStatus === 'active'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-[#41124f]/30 text-gray-400 hover:text-white'
-                }`}
-              >
-                <Check className="w-4 h-4" />
-                Actifs
-              </button>
-              <button
-                onClick={() => setFilterStatus('inactive')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                  filterStatus === 'inactive'
-                    ? 'bg-gray-500 text-white'
-                    : 'bg-[#41124f]/30 text-gray-400 hover:text-white'
-                }`}
-              >
-                Inactifs
-              </button>
-            </div>
-
-            <button
-              onClick={fetchPartners}
-              disabled={loading}
-              className="p-3 bg-[#41124f]/40 hover:bg-[#41124f]/60 border border-[#a34ee5]/30 rounded-xl transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-5 h-5 text-[#a34ee5] ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={() => {
-                setShowForm(true);
-                setShowList(false);
-                resetForm();
-                scrollToForm();
-              }}
-              className="px-6 py-3 bg-gradient-to-r from-[#a34ee5] to-[#7828a8] hover:from-[#7828a8] hover:to-[#a34ee5] text-white rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
-            >
-              <PlusCircle className="w-5 h-5" />
-              <span className="hidden md:inline">Nouveau</span>
-            </button>
+          <div>
+            <h1 style={{ fontSize: 17, fontWeight: 800, color: "#0a0a0a", margin: 0, letterSpacing: "-0.02em" }}>Gestion des Partenaires</h1>
+            <p style={{ fontSize: 12, color: "#aaa", margin: 0, marginTop: 1 }}>
+              {view === "list" ? `${filtered.length} partenaire(s)` : view === "form" ? (editingId ? "Modifier" : "Nouveau partenaire") : "Aperçu"}
+            </p>
           </div>
         </div>
 
-        {/* Messages */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
-            <div className="flex-1 text-red-300 text-sm font-medium">{error}</div>
-            <button onClick={() => setError(null)} className="text-red-400">
-              <X size={18} />
-            </button>
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center gap-3">
-            <div className="flex-1 text-green-300 text-sm font-medium">{successMessage}</div>
-            <button onClick={() => setSuccessMessage(null)} className="text-green-400">
-              <X size={18} />
-            </button>
-          </div>
-        )}
-
-        {/* DRAWER FORM */}
-        {showForm && (
-          <>
-            <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-              onClick={() => {
-                setShowForm(false);
-                setShowList(true);
-                resetForm();
-              }}
-            ></div>
-
-            <div className="fixed top-0 right-0 bottom-0 w-full md:w-[600px] bg-[#0a0a0a] border-l border-[#a34ee5]/20 z-50 overflow-y-auto animate-slide-in pt-20">
-              <form onSubmit={handleSubmit} className="p-8">
-                
-                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#a34ee5]/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#a34ee5] to-[#fec603] rounded-xl flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-white" />
-                    </div>
-                    <h3 className="text-xl font-black text-white">
-                      {editingId ? "Modifier" : "Créer"}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setShowList(true);
-                      resetForm();
-                    }}
-                    className="p-2 bg-[#41124f]/40 hover:bg-[#41124f]/60 rounded-xl transition-all"
-                  >
-                    <X className="w-5 h-5 text-white" />
-                  </button>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
-                    Nom (FR) *
-                  </label>
-                  <input
-                    type="text"
-                    name="name_fr"
-                    value={formData.name_fr}
-                    onChange={handleChange}
-                    placeholder="Nom du partenaire"
-                    className="w-full px-4 py-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#a34ee5]/60 transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
-                    Name (EN)
-                  </label>
-                  <input
-                    type="text"
-                    name="name_en"
-                    value={formData.name_en}
-                    onChange={handleChange}
-                    placeholder="Partner name"
-                    className="w-full px-4 py-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#a34ee5]/60 transition-all"
-                  />
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
-                    Description (FR)
-                  </label>
-                  <textarea
-                    name="description_fr"
-                    value={formData.description_fr}
-                    onChange={handleChange}
-                    rows="3"
-                    placeholder="Description..."
-                    className="w-full px-4 py-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#a34ee5]/60 transition-all resize-none"
-                  ></textarea>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
-                    Description (EN)
-                  </label>
-                  <textarea
-                    name="description_en"
-                    value={formData.description_en}
-                    onChange={handleChange}
-                    rows="3"
-                    placeholder="Description..."
-                    className="w-full px-4 py-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#a34ee5]/60 transition-all resize-none"
-                  ></textarea>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    Site web
-                  </label>
-                  <input
-                    type="url"
-                    name="website_url"
-                    value={formData.website_url}
-                    onChange={handleChange}
-                    placeholder="https://example.com"
-                    className="w-full px-4 py-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#a34ee5]/60 transition-all"
-                  />
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
-                    Logo
-                  </label>
-                  {preview ? (
-                    <div className="relative group rounded-xl overflow-hidden">
-                      <img src={preview} alt="Preview" className="w-full h-48 object-contain bg-white/5" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPreview(null);
-                          setFormData({ ...formData, cover_image: null });
-                        }}
-                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                      >
-                        <X className="w-6 h-6 text-white" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="block h-48 border-2 border-dashed border-[#a34ee5]/30 rounded-xl hover:border-[#a34ee5]/60 cursor-pointer bg-[#41124f]/20 transition-all">
-                      <div className="h-full flex flex-col items-center justify-center gap-2">
-                        <ImageIcon className="w-10 h-10 text-[#a34ee5]" />
-                        <span className="text-sm text-gray-400">Cliquez pour ajouter</span>
-                      </div>
-                      <input
-                        type="file"
-                        name="cover_image"
-                        accept="image/*"
-                        onChange={handleChange}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-
-                <div className="mb-8">
-                  <label className="flex items-center gap-3 p-4 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl cursor-pointer hover:border-[#a34ee5]/50 transition-all">
-                    <input
-                      type="checkbox"
-                      name="is_active"
-                      checked={formData.is_active}
-                      onChange={handleChange}
-                      className="w-5 h-5 rounded accent-[#a34ee5]"
-                    />
-                    <span className="font-bold text-white">Partenaire actif</span>
-                    {formData.is_active && (
-                      <div className="ml-auto w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    )}
-                  </label>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 px-6 py-4 bg-gradient-to-r from-[#a34ee5] to-[#7828a8] hover:from-[#7828a8] hover:to-[#a34ee5] text-white rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Enregistrement...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-5 h-5" />
-                        <span>{editingId ? "Mettre à jour" : "Créer"}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+        {view === "list" && (
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {/* Filters */}
+            <div style={{ display: "flex", gap: 6 }}>
+              {[["all","Tous"],["active","Actifs"],["inactive","Inactifs"]].map(([val,label]) => (
+                <button key={val} onClick={() => { setFilterStatus(val); setCurrentPage(1); }}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12,
+                    background: filterStatus === val ? NAVY : "#f5f5f5",
+                    color: filterStatus === val ? "#fff" : "#666" }}>
+                  {label}
+                </button>
+              ))}
             </div>
-          </>
+            <button onClick={fetchPartners} disabled={loading} style={btnS} className="btn-s">
+              <RefreshCw size={14} style={{ animation: loading ? "spin .8s linear infinite" : "none" }} />
+            </button>
+            <button onClick={() => { resetForm(); setView("form"); }} style={btnP} className="btn-p">
+              <PlusCircle size={15} /> Nouveau partenaire
+            </button>
+          </div>
         )}
+      </div>
 
-        {/* GRID */}
-        {showList && (
-          <>
-            {loading ? (
-              <div className="flex justify-center py-32">
-                <div className="w-16 h-16 border-4 border-[#a34ee5]/30 border-t-[#fec603] rounded-full animate-spin"></div>
-              </div>
-            ) : currentItems.length === 0 ? (
-              <div className="text-center py-32">
-                <div className="w-20 h-20 bg-[#41124f]/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                  <Handshake className="w-10 h-10 text-[#a34ee5]" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Aucun partenaire</h3>
-                <p className="text-gray-500">Créez votre premier partenaire</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {currentItems.map((partner, index) => {
-                    const isSelected = selectedCards.includes(partner.id);
+      {/* ── Alerts ── */}
+      {success && <div style={{ padding: "12px 20px", background: "#d1fae5", border: "1px solid #6ee7b7", borderRadius: 10, marginBottom: 16, fontSize: 13, color: "#065f46", fontWeight: 600 }}>{success}</div>}
+      {error   && <div style={{ padding: "12px 20px", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, marginBottom: 16, fontSize: 13, color: "#991b1b", fontWeight: 600 }}>{error}</div>}
 
-                    return (
-                      <div key={partner.id}>
-                        <div
-                          className={`group relative bg-[#41124f]/20 border-2 rounded-2xl overflow-hidden transition-all duration-300 ${
-                            isSelected 
-                              ? 'border-[#fec603] shadow-xl shadow-[#fec603]/20' 
-                              : 'border-[#a34ee5]/20 hover:border-[#a34ee5]/60'
-                          }`}
-                          onClick={() => toggleCardSelection(partner.id)}
-                        >
-                          <div className="relative h-64 bg-[#0a0a0a] overflow-hidden flex items-center justify-center p-4">
-                            {partner.cover_image_url || partner.cover_image ? (
-                              <img
-                                src={partner.cover_image_url || partner.cover_image}
-                                alt={partner.name_fr}
-                                className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <Handshake className="w-16 h-16 text-gray-700" />
-                            )}
+      {/* ════ FORM ════ */}
+      {view === "form" && (
+        <div style={{ ...card, padding: "28px 32px" }} className="fade-up">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28, paddingBottom: 20, borderBottom: "1px solid #f0f0f0" }}>
+            <div style={{ width: 4, height: 22, background: `linear-gradient(${NAVY},${ORANGE})`, borderRadius: 2 }} />
+            <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>{editingId ? "Modifier le partenaire" : "Nouveau partenaire"}</h2>
+          </div>
 
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
 
-                            <div className="absolute top-3 left-3">
-                              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                                isSelected 
-                                  ? 'bg-[#fec603] border-[#fec603]' 
-                                  : 'bg-white/20 border-white/40 backdrop-blur-sm'
-                              }`}>
-                                {isSelected && <Check className="w-4 h-4 text-[#0a0a0a]" />}
-                              </div>
-                            </div>
-
-                            <div className="absolute top-3 right-3">
-                              {partner.is_active ? (
-                                <span className="px-2 py-1 bg-green-500/90 backdrop-blur-sm text-white rounded-lg text-xs font-bold flex items-center gap-1">
-                                  <Check className="w-3 h-3" />
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 bg-gray-500/90 backdrop-blur-sm text-white rounded-lg text-xs font-bold">
-                                  <Archive className="w-3 h-3" />
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="p-4">
-                            <h3 className="text-white font-bold mb-1 line-clamp-2">
-                              {partner.name_fr || partner.display_name}
-                            </h3>
-                            {partner.description_fr && (
-                              <p className="text-gray-400 text-sm line-clamp-2 mb-3">
-                                {partner.description_fr}
-                              </p>
-                            )}
-                            {partner.website_url && (
-                              <p className="text-xs text-[#a34ee5] flex items-center gap-1 truncate">
-                                <Globe className="w-3 h-3" />
-                                {partner.website_url.replace(/^https?:\/\//, '')}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/90 to-transparent">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  fetchHistory(partner.id);
-                                }}
-                                className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white rounded-lg text-sm font-bold transition-all"
-                              >
-                                <Calendar size={14} className="mx-auto" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(partner);
-                                }}
-                                className="flex-1 px-3 py-2 bg-[#a34ee5]/20 hover:bg-[#a34ee5]/30 backdrop-blur-sm border border-[#a34ee5]/40 text-white rounded-lg text-sm font-bold transition-all"
-                              >
-                                <Edit2 size={14} className="mx-auto" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(partner.id);
-                                }}
-                                className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 backdrop-blur-sm border border-red-500/40 text-white rounded-lg transition-all"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+              {/* Logo upload */}
+              <div style={{ gridColumn: "1/-1" }}>
+                <label style={lbl}>Logo du partenaire</label>
+                <label style={{ display: "block", border: "2px dashed #e0e0e0", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "border-color .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = NAVY}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = "#e0e0e0"}>
+                  <input type="file" accept="image/*" onChange={handleChange} style={{ display: "none" }} />
+                  {preview
+                    ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "#f8fafc" }}>
+                        <img src={preview} style={{ maxHeight: 120, maxWidth: "100%", objectFit: "contain" }} alt="" />
                       </div>
-                    );
-                  })}
+                    : <div style={{ padding: "24px", textAlign: "center", color: "#bbb" }}>
+                        <ImageIcon size={28} style={{ margin: "0 auto 8px", display: "block" }} />
+                        <span style={{ fontSize: 13 }}>Cliquer pour ajouter le logo</span>
+                      </div>
+                  }
+                </label>
+              </div>
+
+              {/* Nom FR */}
+              <div>
+                <label style={lbl}>Nom (français) *</label>
+                <input type="text" name="name_fr" value={formData.name_fr} onChange={handleChange} placeholder="Nom du partenaire" required style={inp} />
+              </div>
+
+              {/* Nom EN */}
+              <div>
+                <label style={lbl}>Name (English)</label>
+                <input type="text" name="name_en" value={formData.name_en} onChange={handleChange} placeholder="Partner name" style={inp} />
+              </div>
+
+              {/* Site web */}
+              <div style={{ gridColumn: "1/-1" }}>
+                <label style={lbl}>Site web</label>
+                <div style={{ position: "relative" }}>
+                  <Globe size={14} color="#aaa" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)" }} />
+                  <input type="url" name="website_url" value={formData.website_url} onChange={handleChange} placeholder="https://partenaire.com" style={{ ...inp, paddingLeft: 36 }} />
                 </div>
+              </div>
 
-                {totalPages > 1 && (
-                  <div className="flex justify-center gap-2 mt-12">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="p-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-[#a34ee5] hover:bg-[#41124f]/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
+              {/* Description FR */}
+              <div>
+                <label style={lbl}>Description (français)</label>
+                <textarea name="description_fr" value={formData.description_fr} onChange={handleChange} placeholder="Description en français..." rows={3} style={{ ...inp, resize: "vertical" }} />
+              </div>
 
-                    {[...Array(totalPages)].map((_, index) => {
-                      const pageNumber = index + 1;
-                      return (
-                        <button
-                          key={pageNumber}
-                          onClick={() => handlePageChange(pageNumber)}
-                          className={`px-4 py-3 rounded-xl font-bold transition-all ${
-                            currentPage === pageNumber
-                              ? "bg-gradient-to-r from-[#a34ee5] to-[#7828a8] text-white"
-                              : "bg-[#41124f]/40 border border-[#a34ee5]/30 text-gray-400 hover:text-white"
-                          }`}
-                        >
-                          {pageNumber}
+              {/* Description EN */}
+              <div>
+                <label style={lbl}>Description (English)</label>
+                <textarea name="description_en" value={formData.description_en} onChange={handleChange} placeholder="Description in English..." rows={3} style={{ ...inp, resize: "vertical" }} />
+              </div>
+
+              {/* Statut */}
+              <div style={{ gridColumn: "1/-1" }}>
+                <div onClick={() => setFormData(p => ({ ...p, is_active: !p.is_active }))}
+                  style={{ border: `2px solid ${formData.is_active ? NAVY : "#e0e0e0"}`, borderRadius: 10, padding: "12px 16px", cursor: "pointer", background: formData.is_active ? `${NAVY}05` : "#fafafa", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${formData.is_active ? NAVY : "#ccc"}`, background: formData.is_active ? NAVY : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {formData.is_active && <Check size={11} color="#fff" />}
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: formData.is_active ? NAVY : "#888" }}>{formData.is_active ? "Partenaire actif — visible sur le site" : "Partenaire inactif — masqué"}</span>
+                  <div style={{ marginLeft: "auto", width: 7, height: 7, borderRadius: "50%", background: formData.is_active ? "#10b981" : "#d1d5db" }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, paddingTop: 20, borderTop: "1px solid #f0f0f0" }}>
+              <button type="submit" disabled={loading} style={{ ...btnP, minWidth: 190, justifyContent: "center" }} className="btn-p">
+                {uploadStep === "uploading" ? <><Loader2 size={15} style={{ animation: "spin .8s linear infinite" }} />Upload logo...</>
+                  : uploadStep === "saving"   ? <><Loader2 size={15} style={{ animation: "spin .8s linear infinite" }} />Sauvegarde...</>
+                  : loading ? <><Loader2 size={15} style={{ animation: "spin .8s linear infinite" }} />Chargement...</>
+                  : <><Save size={15} />{editingId ? "Mettre à jour" : "Créer le partenaire"}</>}
+              </button>
+              <button type="button" onClick={() => { resetForm(); setView("list"); }} style={btnS} className="btn-s">
+                <X size={14} /> Annuler
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ════ LIST ════ */}
+      {view === "list" && (
+        <div className="fade-up">
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <Loader2 size={32} color={NAVY} style={{ animation: "spin .8s linear infinite", margin: "0 auto 10px" }} />
+            </div>
+          ) : currentItems.length === 0 ? (
+            <div style={{ ...card, padding: "60px 0", textAlign: "center" }}>
+              <Handshake size={40} color="#ddd" style={{ margin: "0 auto 16px" }} />
+              <p style={{ color: "#aaa", fontSize: 14, marginBottom: 20 }}>Aucun partenaire</p>
+              <button onClick={() => { resetForm(); setView("form"); }} style={btnP} className="btn-p">
+                <PlusCircle size={14} /> Ajouter le premier partenaire
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Card grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 18 }}>
+                {currentItems.map((p, idx) => {
+                  const img  = getImg(p);
+                  const name = p.name_fr || p.name_en || "Partenaire";
+                  return (
+                    <div key={p.id} className="pp-card"
+                      style={{ ...card, overflow: "hidden", cursor: "pointer", animation: `fadeUp .4s ease ${idx * .04}s both` }}
+                      onClick={() => { setSelectedPartner(p); setView("detail"); }}>
+
+                      {/* Logo */}
+                      <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                        {img ? (
+                          <img className="pp-img" src={img} alt={name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} onError={e => e.target.style.display = "none"} />
+                        ) : (
+                          <span style={{ fontSize: 36, fontWeight: 900, color: `${NAVY}18`, fontFamily: "'Creato Display',sans-serif" }}>{name[0]?.toUpperCase()}</span>
+                        )}
+                        {/* Status dot */}
+                        <div style={{ position: "absolute", top: 10, right: 10, width: 8, height: 8, borderRadius: "50%", background: p.is_active ? "#10b981" : "#d1d5db" }} />
+                        {/* Bottom stripe */}
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${NAVY},${ORANGE})`, transform: "scaleX(0)", transformOrigin: "left", transition: "transform .35s" }} className="pp-stripe" />
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ padding: "12px 14px", borderTop: "1px solid #f5f5f5" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#0a0a0a", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+                        {p.website_url && (
+                          <div style={{ fontSize: 11, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
+                            <Globe size={10} />{p.website_url.replace(/^https?:\/\//, "")}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: "flex", gap: 0, borderTop: "1px solid #f5f5f5" }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleEdit(p)} style={{ flex: 1, padding: "10px 0", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: NAVY, fontSize: 12, fontWeight: 600, gap: 5, transition: "background .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = `${NAVY}08`}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <Edit2 size={13} /> Modifier
                         </button>
-                      );
-                    })}
+                        <div style={{ width: 1, background: "#f5f5f5" }} />
+                        <button onClick={() => handleDelete(p.id)} style={{ flex: 1, padding: "10px 0", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", fontSize: 12, fontWeight: 600, gap: 5, transition: "background .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <Trash2 size={13} /> Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="p-3 bg-[#41124f]/40 border border-[#a34ee5]/30 rounded-xl text-[#a34ee5] hover:bg-[#41124f]/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 0", marginTop: 20, borderTop: "1px solid #f5f5f5" }}>
+                  <span style={{ fontSize: 12, color: "#aaa" }}>Page {currentPage} / {totalPages}</span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      style={{ ...btnS, padding: "7px 12px", opacity: currentPage === 1 ? .4 : 1 }}>←</button>
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button key={i} onClick={() => setCurrentPage(i + 1)}
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: currentPage === i + 1 ? NAVY : "#f5f5f5", color: currentPage === i + 1 ? "#fff" : "#555" }}>
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      style={{ ...btnS, padding: "7px 12px", opacity: currentPage === totalPages ? .4 : 1 }}>→</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ════ DETAIL ════ */}
+      {view === "detail" && selectedPartner && (
+        <div style={{ ...card, overflow: "hidden" }} className="fade-up">
+          <div style={{ padding: "28px 32px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 24, marginBottom: 24 }}>
+              {/* Logo */}
+              <div style={{ width: 80, height: 80, borderRadius: 14, border: "1px solid #ebebeb", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                {getImg(selectedPartner)
+                  ? <img src={getImg(selectedPartner)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 6 }} alt="" />
+                  : <span style={{ fontSize: 28, fontWeight: 900, color: `${NAVY}30` }}>{(selectedPartner.name_fr || "P")[0]}</span>
+                }
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>{selectedPartner.name_fr || selectedPartner.name_en}</h2>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: selectedPartner.is_active ? "#d1fae5" : "#f3f4f6", color: selectedPartner.is_active ? "#065f46" : "#9ca3af" }}>
+                    {selectedPartner.is_active ? "Actif" : "Inactif"}
+                  </span>
+                </div>
+                {selectedPartner.website_url && (
+                  <a href={selectedPartner.website_url} target="_blank" rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: NAVY, fontWeight: 600, textDecoration: "none" }}>
+                    <Globe size={13} />{selectedPartner.website_url.replace(/^https?:\/\//, "")}
+                    <ExternalLink size={11} />
+                  </a>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => handleEdit(selectedPartner)} style={btnP} className="btn-p"><Edit2 size={14} /> Modifier</button>
+                <button onClick={() => handleDelete(selectedPartner.id)} style={{ ...btnS, color: "#ef4444" }}><Trash2 size={14} /> Supprimer</button>
+              </div>
+            </div>
+
+            {(selectedPartner.description_fr || selectedPartner.description_en) && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {selectedPartner.description_fr && (
+                  <div style={{ background: "#f8faff", borderRadius: 12, padding: "16px 20px", borderLeft: `3px solid ${NAVY}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: NAVY, marginBottom: 8 }}>Français</div>
+                    <p style={{ fontSize: 13, color: "#555", lineHeight: 1.8, margin: 0 }}>{selectedPartner.description_fr}</p>
                   </div>
                 )}
-              </>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* FLOATING BAR */}
-      {selectedCards.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-          <div className="bg-[#0a0a0a] border-2 border-[#fec603] rounded-2xl shadow-2xl shadow-[#fec603]/20 p-4 backdrop-blur-xl">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-[#fec603]/20 border border-[#fec603]/40 rounded-xl">
-                <Check className="w-5 h-5 text-[#fec603]" />
-                <span className="font-bold text-white">{selectedCards.length} sélectionné{selectedCards.length > 1 ? 's' : ''}</span>
+                {selectedPartner.description_en && (
+                  <div style={{ background: "#fff8f5", borderRadius: 12, padding: "16px 20px", borderLeft: `3px solid ${ORANGE}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: ORANGE, marginBottom: 8 }}>English</div>
+                    <p style={{ fontSize: 13, color: "#555", lineHeight: 1.8, margin: 0 }}>{selectedPartner.description_en}</p>
+                  </div>
+                )}
               </div>
-
-              <button
-                onClick={handleBulkDelete}
-                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-all flex items-center gap-2"
-              >
-                <Trash2 className="w-5 h-5" />
-                <span>Supprimer</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedCards([])}
-                className="p-3 bg-[#41124f]/60 hover:bg-[#41124f] rounded-xl transition-all"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* MODAL HISTORY */}
-      {selectedPartner && (
-        <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center px-4 z-[9999]"
-          onClick={() => setSelectedPartner(null)}
-        >
-          <div 
-            className="bg-[#0a0a0a] border border-[#a34ee5]/30 w-full max-w-3xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 border-b border-[#a34ee5]/20 flex items-center justify-between">
-              <h2 className="text-2xl font-black text-white flex items-center gap-3">
-                <Calendar className="w-6 h-6 text-[#fec603]" />
-                Historique - {selectedPartner.name_fr}
-              </h2>
-              <button
-                onClick={() => setSelectedPartner(null)}
-                className="p-2 bg-[#41124f]/40 hover:bg-[#41124f]/60 rounded-xl transition-all"
-              >
-                <X className="w-6 h-6 text-white" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1">
-              {history.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Aucune modification enregistrée</p>
-                </div>
-              ) : (
-                <ul className="space-y-3">
-                  {history.map((h) => (
-                    <li key={h.id} className="p-4 bg-[#41124f]/20 border border-[#a34ee5]/20 rounded-xl">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${h.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                          <span className="font-semibold text-white">
-                            {h.is_active ? "✓ Activé" : "⨯ Désactivé"}
-                          </span>
-                        </div>
-                        <span className="text-gray-400 text-sm">
-                          {new Date(h.changed_at).toLocaleString('fr-FR')}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        @keyframes slide-in {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes slide-up {
-          from { transform: translate(-50%, 100%); opacity: 0; }
-          to { transform: translate(-50%, 0); opacity: 1; }
-        }
-        .animate-slide-in { animation: slide-in 0.3s ease-out; }
-        .animate-slide-up { animation: slide-up 0.3s ease-out; }
-      `}</style>
     </div>
   );
 };
