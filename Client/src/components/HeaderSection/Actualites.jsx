@@ -1,9 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Calendar, Loader2, X, ArrowRight, Clock, Newspaper,
-  ChevronLeft, ChevronRight,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, X, Clock, Calendar } from "lucide-react";
 import CONFIG from "../../config/config.js";
 
 const NAVY   = "#003893";
@@ -11,381 +8,385 @@ const ORANGE = "#EA580C";
 
 const Actualites = () => {
   const { t, i18n } = useTranslation();
-
   const [newsList, setNewsList]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [selectedNews, setSelectedNews] = useState(null);
   const [currentPage, setCurrentPage]   = useState(1);
-  const itemsPerPage = 7; // 1 hero + 6 grille
+  const [hoveredId, setHoveredId]       = useState(null);
+  const itemsPerPage = 6;
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
 
-  // ── Fetch ──────────────────────────────────────────────────────
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        setError(null);
         const token = localStorage.getItem("access");
         const res = await fetch(CONFIG.API_NEWS_LIST, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        if (!res.ok) throw new Error("Erreur HTTP : " + res.status);
+        if (!res.ok) throw new Error("Erreur " + res.status);
         const data = await res.json();
-
-        // Gère tableau direct ET réponse paginée {count, results:[]}
         const all = Array.isArray(data) ? data : (data.results ?? []);
-
-        // Seuls les articles actifs, triés du plus récent
         const active = all
-          .filter(item => item.is_active === true || item.isActive === true)
+          .filter(i => i.is_active === true || i.isActive === true)
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
         setNewsList(active);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      } catch (err) { setError(err.message); }
+      finally { setLoading(false); }
     };
     fetchNews();
   }, []);
 
-  // ── Helpers ────────────────────────────────────────────────────
-  // Champs bilingues title_fr / title_en  et  content_fr / content_en
   const loc = (item, base) => {
     const lang = i18n.language;
     return item[`${base}_${lang}`] || item[`${base}_fr`] || item[base] || "";
   };
 
-  // Debug — affiche le 1er item pour voir les champs réels de l'API
-  useEffect(() => {
-    if (newsList.length > 0) {
-      console.log("📰 Champs d'un article News :", Object.keys(newsList[0]));
-      console.log("📸 Valeurs image :", {
-        image: newsList[0].image,
-        image_url: newsList[0].image_url,
-        photo: newsList[0].photo,
-      });
-    }
-  }, [newsList]);
-
-  // CloudinaryField → image_url est toujours une URL absolue https://res.cloudinary.com/...
-  // On garde le fallback /media/ pour dev local si jamais
   const getImage = (item) => {
     if (!item) return null;
     const raw = item.image_url || item.image || null;
     if (!raw) return null;
-    if (typeof raw === "string" && (raw.startsWith("/media") || raw.startsWith("media/"))) {
+    if (typeof raw === "string" && (raw.startsWith("/media") || raw.startsWith("media/")))
       return `${CONFIG.BASE_URL}/${raw.replace(/^\//, "")}`;
-    }
     return raw;
   };
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString(i18n.language === "fr" ? "fr-FR" : "en-US", {
-      year: "numeric", month: "long", day: "numeric",
-    });
+  const formatDate = (d) => new Date(d).toLocaleDateString(
+    i18n.language === "fr" ? "fr-FR" : "en-US",
+    { day: "numeric", month: "long", year: "numeric" }
+  );
 
-  const readTime = (content) => `${Math.max(1, Math.ceil(content.split(" ").length / 200))} min`;
+  const readTime = (c) => `${Math.max(1, Math.ceil(c.split(" ").length / 200))} min`;
 
-  // ── Pagination ─────────────────────────────────────────────────
   const totalPages   = Math.ceil(newsList.length / itemsPerPage);
-  const idxLast      = currentPage * itemsPerPage;
-  const idxFirst     = idxLast - itemsPerPage;
-  const currentItems = newsList.slice(idxFirst, idxLast);
-
+  const currentItems = newsList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const goPage = (n) => { setCurrentPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
-  // ── Loading ────────────────────────────────────────────────────
+  /* ── Loading ─────────────────────────────────────────────── */
   if (loading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-14 h-14 border-2 border-gray-200 rounded-full animate-spin mx-auto mb-5"
-          style={{ borderTopColor: NAVY }} />
-        <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-          {t("news.loading", "Chargement...")}
-        </p>
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 48, height: 48, border: `2px solid #f0f0f0`, borderTopColor: NAVY, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
+        <p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#999", fontFamily: "sans-serif" }}>Chargement</p>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
   if (error) return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="max-w-md text-center">
-        <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <X className="w-10 h-10 text-gray-700" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-3">
-          {t("news.errorTitle", "Erreur de chargement")}
-        </h2>
-        <p className="text-gray-500 mb-8">{error}</p>
-        <button onClick={() => window.location.reload()}
-          className="px-8 py-4 text-white font-bold rounded-xl transition-all"
-          style={{ background: NAVY }}>
-          {t("news.retry", "Réessayer")}
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <p style={{ fontSize: 48, marginBottom: 16 }}>⚠</p>
+        <p style={{ color: "#666", marginBottom: 24 }}>{error}</p>
+        <button onClick={() => window.location.reload()} style={{ padding: "12px 32px", background: NAVY, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>
+          Réessayer
         </button>
       </div>
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────
+  /* ── Main ────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-white">
+    <div style={{ background: "#fff", minHeight: "100vh", fontFamily: "'DM Sans', 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @keyframes fadeUp { from { opacity:0; transform:translateY(32px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin   { to { transform:rotate(360deg); } }
+        .news-card { transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), box-shadow 0.35s; }
+        .news-card:hover { transform: translateY(-6px); box-shadow: 0 24px 60px rgba(0,56,147,0.12); }
+        .news-img { transition: transform 0.6s cubic-bezier(0.22,1,0.36,1); }
+        .news-card:hover .news-img { transform: scale(1.06); }
+        .arrow-btn { transition: transform 0.2s, background 0.2s; }
+        .arrow-btn:hover { transform: scale(1.12); background: ${ORANGE} !important; }
+        .modal-enter { animation: fadeUp 0.35s cubic-bezier(0.22,1,0.36,1); }
+      `}</style>
 
-      {/* ── Hero section ── */}
-      <section className="relative pt-40 pb-24 px-6 lg:px-16 border-b border-gray-200">
-        <div className="max-w-[1800px] mx-auto">
-          <div className="mb-16">
-            {/* Accent */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-px" style={{ background: ORANGE }} />
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: ORANGE }}>
-                {t("news.sectionLabel", "Actualités")}
-              </span>
-            </div>
+      {/* ── HERO ─────────────────────────────────────────────── */}
+      <section style={{ padding: "120px 48px 80px", borderBottom: "1px solid #f0f0f0", maxWidth: 1600, margin: "0 auto" }}>
 
-            <h1
-              className="text-[10vw] md:text-[8vw] lg:text-[110px] font-bold leading-none tracking-tight text-gray-900 mb-8"
-              style={{ fontFamily: "'Creato Display', sans-serif" }}
-            >
-              {t("news.title", "Actualités")}
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-500 max-w-2xl font-light leading-relaxed">
-              {t("news.subtitle", "Découvrez nos dernières publications et projets.")}
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-10 text-sm uppercase tracking-widest">
-            <div>
-              <span className="font-bold text-3xl md:text-4xl text-gray-900">{newsList.length}</span>
-              <span className="text-gray-400 ml-2">{t("news.totalArticles", "articles")}</span>
-            </div>
-            <div className="w-px h-8 bg-gray-200" />
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: ORANGE }} />
-              <span className="text-gray-400">{t("news.live", "En ligne")}</span>
-            </div>
+        {/* eyebrow */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
+          <div style={{ width: 32, height: 2, background: ORANGE }} />
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: ORANGE }}>
+            {t("news.sectionLabel", "Actualités")}
+          </span>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", animation: "spin 3s linear infinite" }} />
+            <span style={{ fontSize: 11, color: "#999", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              {newsList.length} {t("news.totalArticles", "articles")}
+            </span>
           </div>
         </div>
+
+        {/* giant title */}
+        <h1 style={{
+          fontSize: "clamp(56px, 10vw, 128px)",
+          fontWeight: 900,
+          letterSpacing: "-0.03em",
+          lineHeight: 0.9,
+          color: "#0a0a0a",
+          marginBottom: 32,
+          fontFamily: "'Creato Display', 'DM Sans', sans-serif",
+        }}>
+          {t("news.title", "Actua")}
+          {/* <span style={{ color: NAVY }}>lités</span> */}
+          <span style={{ color: ORANGE, fontSize: "0.35em", fontWeight: 400, letterSpacing: "0.1em", verticalAlign: "super", marginLeft: 8 }}>
+            NEXUS BTP
+          </span>
+        </h1>
+
+        <p style={{ fontSize: 18, color: "#666", maxWidth: 560, lineHeight: 1.7, fontWeight: 300 }}>
+          {t("news.subtitle", "Découvrez nos dernières publications, projets et actualités du secteur BTP.")}
+        </p>
       </section>
 
-      {/* ── Articles ── */}
-      <section className="py-20 px-6 lg:px-16">
-        <div className="max-w-[1800px] mx-auto">
+      {/* ── GRID ─────────────────────────────────────────────── */}
+      <section style={{ padding: "72px 48px 80px", maxWidth: 1600, margin: "0 auto" }}>
 
-          {newsList.length === 0 ? (
-            <div className="text-center py-24">
-              <div className="w-24 h-24 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Newspaper className="w-12 h-12 text-gray-300" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2"
-                style={{ fontFamily: "'Creato Display', sans-serif" }}>
-                {t("news.noNews", "Aucune actualité")}
-              </h3>
-              <p className="text-gray-400">{t("news.noNewsDesc", "Revenez bientôt.")}</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
-                {currentItems.map((item, idx) => {
-                  const title   = loc(item, "title");
-                  const content = loc(item, "content");
-                  const image   = getImage(item);
-                  const isHero  = idx === 0 && currentPage === 1;
-                  const excerpt = content.slice(0, isHero ? 200 : 130) + "…";
-
-                  return (
-                    <article
-                      key={item.id}
-                      onClick={() => setSelectedNews(item)}
-                      className={`group cursor-pointer ${isHero ? "md:col-span-2 lg:col-span-2" : ""}`}
-                      style={{ animation: `fadeInUp 0.5s ease-out ${idx * 0.08}s both` }}
-                    >
-                      <div className={`bg-white rounded-2xl overflow-hidden border transition-all duration-300 h-full flex flex-col
-                        hover:-translate-y-1 hover:shadow-xl
-                        ${isHero ? "border-gray-200 shadow-lg" : "border-gray-100 shadow-sm"}`}
-                        style={{ "--hover-border": NAVY }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = `${NAVY}40`}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = isHero ? "#e5e7eb" : "#f3f4f6"}
-                      >
-                        {/* Image */}
-                        {image && (
-                          <div className={`relative overflow-hidden bg-gray-100 flex-shrink-0 ${isHero ? "h-80 md:h-96" : "h-56"}`}>
-                            <img
-                              src={image}
-                              alt={title}
-                              loading="lazy"
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              onError={e => { e.target.parentElement.style.display = "none"; }}
-                            />
-                            {/* Gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                            {/* Read time */}
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/75 backdrop-blur-sm rounded-full">
-                                <Clock className="w-3 h-3 text-white" />
-                                <span className="text-xs font-semibold text-white">{readTime(content)}</span>
-                              </div>
-                            </div>
-                            {/* Nexus accent */}
-                            <div className="absolute bottom-0 left-0 right-0 h-1"
-                              style={{ background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
-                          </div>
-                        )}
-
-                        {/* Content */}
-                        <div className={`flex flex-col flex-1 ${isHero ? "p-6 md:p-8" : "p-5"}`}>
-                          {/* Date */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                              <Calendar className="w-3 h-3" />
-                              <time>{formatDate(item.created_at)}</time>
-                            </div>
-                          </div>
-
-                          {/* Title */}
-                          <h3
-                            className={`font-bold text-gray-900 mb-3 leading-tight ${isHero ? "text-2xl md:text-3xl line-clamp-3" : "text-lg line-clamp-2"}`}
-                            style={{ fontFamily: "'Creato Display', sans-serif" }}
-                          >
-                            {title}
-                          </h3>
-
-                          {/* Excerpt */}
-                          <p className={`text-gray-500 leading-relaxed flex-1 ${isHero ? "text-base line-clamp-4" : "text-sm line-clamp-3"}`}>
-                            {excerpt}
-                          </p>
-
-                          {/* CTA */}
-                          <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-                            <span className="text-sm font-bold text-gray-800">
-                              {t("news.readMore", "Lire la suite")}
-                            </span>
-                            <div
-                              className="w-9 h-9 rounded-full flex items-center justify-center text-white transition-all duration-300 group-hover:scale-110"
-                              style={{ background: NAVY }}
-                            >
-                              <ArrowRight className="w-4 h-4" />
-                            </div>
-                          </div>
-                        </div>
+        {newsList.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "120px 0" }}>
+            <p style={{ fontSize: 64, marginBottom: 16 }}>📰</p>
+            <p style={{ color: "#999", fontSize: 18 }}>{t("news.noNews", "Aucune actualité pour le moment")}</p>
+          </div>
+        ) : (
+          <>
+            {/* Featured first article */}
+            {currentPage === 1 && currentItems[0] && (() => {
+              const hero = currentItems[0];
+              const img  = getImage(hero);
+              const content = loc(hero, "content");
+              return (
+                <div
+                  onClick={() => setSelectedNews(hero)}
+                  className="news-card"
+                  style={{
+                    display: "grid", gridTemplateColumns: img ? "1fr 1fr" : "1fr",
+                    gap: 0, borderRadius: 20, overflow: "hidden",
+                    border: "1px solid #e8e8e8", marginBottom: 48,
+                    cursor: "pointer", background: "#fff",
+                    animation: "fadeUp 0.6s cubic-bezier(0.22,1,0.36,1) both",
+                  }}
+                >
+                  {img && (
+                    <div style={{ position: "relative", overflow: "hidden", minHeight: 420 }}>
+                      <img className="news-img" src={img} alt={loc(hero, "title")}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(0,56,147,0.3), transparent)" }} />
+                      <div style={{ position: "absolute", top: 20, left: 20, background: NAVY, color: "#fff", fontSize: 10, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", padding: "4px 12px", borderRadius: 20 }}>
+                        À la une
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2">
-                  <button onClick={() => goPage(currentPage - 1)} disabled={currentPage === 1}
-                    className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button key={i} onClick={() => goPage(i + 1)}
-                      className="w-11 h-11 rounded-xl font-bold text-sm transition-all"
-                      style={currentPage === i + 1
-                        ? { background: NAVY, color: "#fff", transform: "scale(1.1)" }
-                        : { border: "1px solid #e5e7eb", color: "#374151" }}
-                    >{i + 1}</button>
-                  ))}
-
-                  <button onClick={() => goPage(currentPage + 1)} disabled={currentPage === totalPages}
-                    className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                    </div>
+                  )}
+                  <div style={{ padding: "48px 48px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                        <span style={{ fontSize: 11, color: "#999", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                          {formatDate(hero.created_at)}
+                        </span>
+                        <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#ddd" }} />
+                        <span style={{ fontSize: 11, color: "#999" }}>{readTime(content)}</span>
+                      </div>
+                      <h2 style={{ fontSize: "clamp(22px, 3vw, 36px)", fontWeight: 800, lineHeight: 1.2, letterSpacing: "-0.02em", color: "#0a0a0a", marginBottom: 16, fontFamily: "'Creato Display', sans-serif" }}>
+                        {loc(hero, "title")}
+                      </h2>
+                      <p style={{ fontSize: 15, color: "#666", lineHeight: 1.8, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {content}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 28, borderTop: "1px solid #f0f0f0", marginTop: 28 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>
+                        {t("news.readMore", "Lire l'article")}
+                      </span>
+                      <button className="arrow-btn" style={{ width: 44, height: 44, borderRadius: "50%", background: NAVY, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ArrowRight size={18} color="#fff" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
+              );
+            })()}
 
-      {/* ── Modal ── */}
-      {selectedNews && (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto"
-          style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(16px)" }}
-          onClick={() => setSelectedNews(null)}
-        >
-          {/* Close */}
-          <button
-            onClick={() => setSelectedNews(null)}
-            className="fixed top-8 right-8 w-14 h-14 text-white rounded-2xl flex items-center justify-center transition-all hover:scale-110 hover:rotate-90 z-50 shadow-xl"
-            style={{ background: NAVY }}
-          >
-            <X size={22} />
-          </button>
+            {/* Rest of articles — masonry-style numbered grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 24 }}>
+              {(currentPage === 1 ? currentItems.slice(1) : currentItems).map((item, idx) => {
+                const img     = getImage(item);
+                const content = loc(item, "content");
+                const num     = String((currentPage - 1) * itemsPerPage + idx + (currentPage === 1 ? 2 : 1)).padStart(2, "0");
 
-          <div className="max-w-4xl mx-auto px-6 lg:px-12 py-28 md:py-36" onClick={e => e.stopPropagation()}>
-            {/* Meta */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600 font-semibold">
-                <Calendar className="w-4 h-4" />
-                <time>{formatDate(selectedNews.created_at)}</time>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600 font-semibold">
-                <Clock className="w-4 h-4" />
-                <span>{readTime(loc(selectedNews, "content"))}</span>
-              </div>
+                return (
+                  <article
+                    key={item.id}
+                    onClick={() => setSelectedNews(item)}
+                    className="news-card"
+                    style={{
+                      borderRadius: 16, overflow: "hidden", cursor: "pointer",
+                      border: "1px solid #ebebeb", background: "#fff",
+                      animation: `fadeUp 0.6s cubic-bezier(0.22,1,0.36,1) ${idx * 0.07}s both`,
+                      display: "flex", flexDirection: "column",
+                    }}
+                  >
+                    {/* Image zone */}
+                    <div style={{ position: "relative", height: 220, overflow: "hidden", background: "#f5f5f5", flexShrink: 0 }}>
+                      {img ? (
+                        <img className="news-img" src={img} alt={loc(item, "title")}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={e => { e.target.parentElement.style.background = `linear-gradient(135deg, ${NAVY}15, ${ORANGE}10)`; e.target.style.display = "none"; }}
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${NAVY}10, ${ORANGE}08)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 48, opacity: 0.15, fontWeight: 900, color: NAVY }}>N</span>
+                        </div>
+                      )}
+                      {/* Number badge */}
+                      <div style={{
+                        position: "absolute", top: 14, left: 14,
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: "rgba(255,255,255,0.95)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 800, color: NAVY, letterSpacing: "-0.02em",
+                      }}>{num}</div>
+                      {/* Gradient overlay */}
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to top, rgba(0,0,0,0.35), transparent)" }} />
+                      {/* Nexus stripe */}
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ padding: "22px 24px 20px", display: "flex", flexDirection: "column", flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <Calendar size={11} color="#aaa" />
+                        <span style={{ fontSize: 11, color: "#aaa", letterSpacing: "0.06em" }}>{formatDate(item.created_at)}</span>
+                        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb" }}>{readTime(content)}</span>
+                      </div>
+
+                      <h3 style={{
+                        fontSize: 17, fontWeight: 800, lineHeight: 1.3, letterSpacing: "-0.01em",
+                        color: "#0a0a0a", marginBottom: 10, flex: 1,
+                        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                        fontFamily: "'Creato Display', sans-serif",
+                      }}>
+                        {loc(item, "title")}
+                      </h3>
+
+                      <p style={{
+                        fontSize: 13, color: "#888", lineHeight: 1.7, marginBottom: 18,
+                        display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                      }}>
+                        {content}
+                      </p>
+
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 16, borderTop: "1px solid #f5f5f5" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: NAVY }}>
+                          {t("news.readMore", "Lire la suite")}
+                        </span>
+                        <button className="arrow-btn" style={{ width: 34, height: 34, borderRadius: "50%", background: NAVY, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <ArrowUpRight size={14} color="#fff" />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
-            {/* Accent */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-12 h-1 rounded-full" style={{ background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
-            </div>
-
-            {/* Title */}
-            <h1
-              className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-10 leading-tight"
-              style={{ fontFamily: "'Creato Display', sans-serif" }}
-            >
-              {loc(selectedNews, "title")}
-            </h1>
-
-            {/* Image */}
-            {getImage(selectedNews) && (
-              <div className="relative w-full h-80 md:h-[500px] mb-12 rounded-2xl overflow-hidden shadow-2xl">
-                <img src={getImage(selectedNews)} alt={loc(selectedNews, "title")} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 h-1"
-                  style={{ background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 64 }}>
+                <button onClick={() => goPage(currentPage - 1)} disabled={currentPage === 1}
+                  style={{ width: 42, height: 42, borderRadius: 10, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: currentPage === 1 ? 0.3 : 1 }}>
+                  ←
+                </button>
+                {[...Array(totalPages)].map((_, i) => (
+                  <button key={i} onClick={() => goPage(i + 1)}
+                    style={{
+                      width: 42, height: 42, borderRadius: 10, border: "none", cursor: "pointer",
+                      fontWeight: 700, fontSize: 14, transition: "all 0.2s",
+                      background: currentPage === i + 1 ? NAVY : "#f5f5f5",
+                      color: currentPage === i + 1 ? "#fff" : "#555",
+                      transform: currentPage === i + 1 ? "scale(1.1)" : "scale(1)",
+                    }}>{i + 1}</button>
+                ))}
+                <button onClick={() => goPage(currentPage + 1)} disabled={currentPage === totalPages}
+                  style={{ width: 42, height: 42, borderRadius: 10, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: currentPage === totalPages ? 0.3 : 1 }}>
+                  →
+                </button>
               </div>
             )}
+          </>
+        )}
+      </section>
 
-            {/* Content */}
-            <div className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-light mb-12"
-              style={{ fontFamily: "Poppins, sans-serif" }}>
-              {loc(selectedNews, "content")}
-            </div>
-
-            {/* Divider */}
-            <div className="w-24 h-1 rounded-full mb-8"
-              style={{ background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
-
-            {/* Back */}
-            <button
-              onClick={() => setSelectedNews(null)}
-              className="inline-flex items-center gap-3 px-8 py-4 text-white font-bold rounded-2xl transition-all hover:gap-5 hover:shadow-xl hover:scale-105"
-              style={{ background: NAVY }}
+      {/* ── MODAL ────────────────────────────────────────────── */}
+      {selectedNews && (() => {
+        const img     = getImage(selectedNews);
+        const content = loc(selectedNews, "content");
+        const title   = loc(selectedNews, "title");
+        return (
+          <div
+            onClick={() => setSelectedNews(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", overflowY: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 24px" }}
+          >
+            <div
+              className="modal-enter"
+              onClick={e => e.stopPropagation()}
+              style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 820, overflow: "hidden", position: "relative" }}
             >
-              <ArrowRight className="w-5 h-5 rotate-180" />
-              {t("news.backToNews", "Retour aux actualités")}
-            </button>
-          </div>
-        </div>
-      )}
+              {/* Close */}
+              <button onClick={() => setSelectedNews(null)}
+                style={{ position: "absolute", top: 20, right: 20, zIndex: 10, width: 44, height: 44, borderRadius: 12, background: "rgba(0,0,0,0.7)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = NAVY}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0.7)"}
+              >
+                <X size={18} color="#fff" />
+              </button>
 
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+              {/* Hero image */}
+              {img && (
+                <div style={{ height: 360, overflow: "hidden", position: "relative" }}>
+                  <img src={img} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)" }} />
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${NAVY}, ${ORANGE})` }} />
+                </div>
+              )}
+
+              {/* Content */}
+              <div style={{ padding: "40px 48px 48px" }}>
+                {/* Meta */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <div style={{ width: 28, height: 2, background: ORANGE }} />
+                  <span style={{ fontSize: 11, color: "#999", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                    {formatDate(selectedNews.created_at)}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#ccc" }}>·</span>
+                  <span style={{ fontSize: 11, color: "#999" }}>{readTime(content)}</span>
+                </div>
+
+                {/* Title */}
+                <h2 style={{ fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, lineHeight: 1.15, letterSpacing: "-0.02em", color: "#0a0a0a", marginBottom: 28, fontFamily: "'Creato Display', sans-serif" }}>
+                  {title}
+                </h2>
+
+                {/* Body */}
+                <p style={{ fontSize: 16, color: "#555", lineHeight: 1.85, whiteSpace: "pre-wrap", fontWeight: 300 }}>
+                  {content}
+                </p>
+
+                {/* Footer */}
+                <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" }}>
+                  <button onClick={() => setSelectedNews(null)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 28px", background: NAVY, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 700, fontSize: 14, transition: "all 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#001f5c"}
+                    onMouseLeave={e => e.currentTarget.style.background = NAVY}
+                  >
+                    <ArrowRight size={16} style={{ transform: "rotate(180deg)" }} />
+                    {t("news.backToNews", "Retour")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
