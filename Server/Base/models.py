@@ -71,6 +71,27 @@ class About(models.Model):
     direction_image = CloudinaryField(
         'Direction Image', folder='about/direction', blank=True, null=True
     )
+    name_fr_partner = models.CharField(max_length=255, verbose_name="Nom (FR)")
+
+
+
+    website_url = models.URLField(
+
+    verbose_name="URL du site web", blank=True, null=True
+
+        )
+
+    cover_image_partner = CloudinaryField(
+
+    "Logo / Image partenaire",
+
+    folder="partners/logos",
+
+    blank=True,
+
+    null=True,
+
+        )
 
     # =========================
     # META

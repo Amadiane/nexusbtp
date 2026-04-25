@@ -69,11 +69,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Server.wsgi.application'
 
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUD_NAME'),
-    'API_KEY': os.getenv('API_KEY'),
-    'API_SECRET': os.getenv('API_SECRET'),
-}
+# CLOUDINARY_STORAGE = {
+#     'CLOUD_NAME': os.getenv('CLOUD_NAME'),
+#     'API_KEY': os.getenv('API_KEY'),
+#     'API_SECRET': os.getenv('API_SECRET'),
+# }
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
@@ -197,3 +197,39 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ══════════════════════════════════════════════════════════════
+# settings.py — ajoute/remplace ces lignes pour configurer Cloudinary
+# ══════════════════════════════════════════════════════════════
+
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+# ── Option 1 : via variables d'environnement dans .env ──────
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('CLOUD_NAME', 'dqculak64'),
+    'API_KEY':    os.getenv('API_KEY'),
+    'API_SECRET': os.getenv('API_SECRET'),
+}
+
+# ── Option 2 : valeurs hardcodées (dev seulement, jamais en prod) ──
+# CLOUDINARY_STORAGE = {
+#     'CLOUD_NAME': 'dqculak64',
+#     'API_KEY':    'VOTRE_API_KEY_ICI',
+#     'API_SECRET': 'VOTRE_API_SECRET_ICI',
+# }
+
+# ── IMPORTANT : initialise explicitement Cloudinary ─────────
+cloudinary.config(
+    cloud_name = CLOUDINARY_STORAGE['CLOUD_NAME'],
+    api_key    = CLOUDINARY_STORAGE['API_KEY'],
+    api_secret = CLOUDINARY_STORAGE['API_SECRET'],
+)
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

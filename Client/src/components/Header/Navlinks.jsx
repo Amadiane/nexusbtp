@@ -180,10 +180,10 @@ const Navlinks = () => {
             {/* Footer - Design langue élégant */}
             <div className="pl-8 pr-1 py-5 border-t border-gray-200 bg-white flex-shrink-0">
               <div className="space-y-4">
-                <div>
-                  <p className="text-[9px] uppercase tracking-[0.25em] text-gray-400 font-bold mb-3" style={{ fontFamily: "'Inter', sans-serif" }}>
+                {/* <div> */}
+                  {/* <p className="text-[9px] uppercase tracking-[0.25em] text-gray-400 font-bold mb-3" style={{ fontFamily: "'Inter', sans-serif" }}>
                     Language
-                  </p>
+                  </p> */}
                   {/* <div className="inline-flex bg-gray-100 rounded-full p-1">
                     <button
                       onClick={() => {
@@ -214,11 +214,11 @@ const Navlinks = () => {
                       EN
                     </button>
                   </div> */}
-                </div>
+                {/* </div> */}
 
                 <div className="text-center pt-3 border-t border-gray-300">
                   <p className="text-[9px] text-gray-500 leading-tight" style={{ fontFamily: "'Inter', sans-serif" }}>
-                    © 2026 Betcom AI<br/>Architecture & Ingénierie
+                    © 2026 NEXUS<br/>Architecture & Ingénierie
                   </p>
                 </div>
               </div>
